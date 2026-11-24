@@ -1,5 +1,16 @@
 # Changes
 
+2026.11.24 - UX additions
+
+* Haptics through Android's built-in effects: master switch plus a switch per moment (drawer, lift, folder, place, reorder, page flip, Remove and Uninstall)
+* Home screen stays in the natural orientation; "Allow home screen rotation" setting
+* Drag-to-remove bar at the top while dragging: Remove and Uninstall, like Pixel Launcher
+* Automatic backup to a folder picked through Android's folder picker: on/off, after changes, daily, weekly or monthly, keep 1, 3, 5, 10 or 30, Back up now, status with last time or error
+* Restoring a backup keeps this phone's automatic backup settings
+* Spanish and German strings for everything new
+
+Reasons for changes: requested additions to make rearranging and backups feel like Pixel Launcher without new permissions or dependencies.
+
 2026.11.24 - Bug fixes
 
 * Fixed: no gestures worked on an empty home screen (no drawer, no long-press menu, no page swipes). The gesture code read Android's built-in View.getOverlay(), which is never empty, instead of the launcher's own menu overlay, so it always thought a menu was open

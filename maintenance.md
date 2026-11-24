@@ -55,6 +55,13 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
    - Change theme and icon shape from settings.
    - Import the backup you exported in step 2.
 
+## 4.2. Haptics, rotation, drag-to-remove, automatic backup
+
+1. Haptics: with Vibration feedback on, check each moment buzzes (open the drawer, lift an icon, make a folder, place an icon, push icons aside, flip a page while dragging, hover Remove). Turn one switch off and confirm only that moment goes quiet. Read the new Android version's notes for changes to `HapticFeedbackConstants`.
+2. Rotation: turn the phone sideways on the home screen; it should stay upright. Turn on Allow home screen rotation and check it follows.
+3. Drag an app to Remove and to Uninstall. Remove takes it off the home screen; Uninstall opens the system dialog and the icon returns until the app is gone.
+4. Automatic backup: open the backup folder and confirm the newest `corkboard-auto-*.zip` is recent and that no more than the chosen number are there. Tap Back up now once. If the status shows an error, pick the folder again.
+
 ## 4.5. Translations
 
 When a string is added or changed in `values/strings.xml`, add or change it in `values-es/strings.xml` and `values-de/strings.xml` too. Lint fails the build otherwise. If a native speaker sends corrections, apply them and note it in `changes.md`.
