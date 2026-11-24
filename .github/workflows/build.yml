@@ -1,0 +1,128 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Pushes to main and pull requests: debug APK and lint. Checks only, nothing is released.
+  check:
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      # bash ./gradlew, since uploading through the GitHub web page drops the executable bit.
+      - name: Build debug APK and run lint
+        run: bash ./gradlew --no-daemon --stacktrace assembleDebug lintDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: Corkboard-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Show lint report
+        if: failure()
+        run: |
+          for f in app/build/reports/lint-results-debug.txt app/build/intermediates/lint_intermediate_text_report/debug/*/lint-results-debug.txt; do
+            [ -f "$f" ] && cat "$f" && exit 0
+          done
+          find app/build -name 'lint-results*' -print
+
+  # Run workflow from the Actions tab, picking a tag under "Use workflow from".
+  release:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check this run is on a tag
+        run: |
+          if [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::This was run on the branch '$GITHUB_REF_NAME'. Run the workflow again and pick a tag (like v1.2.0) under 'Use workflow from'."
+            exit 1
+          fi
+          case "$GITHUB_REF_NAME" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *)
+              echo "::error::Tag '$GITHUB_REF_NAME' is not in the vMAJOR.MINOR.PATCH form (like v1.2.0)."
+              exit 1
+              ;;
+          esac
+
+      - name: Check a release exists for this tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::No GitHub release exists for tag '$GITHUB_REF_NAME'. Go to Releases, draft a new release for this tag, publish it, then run this workflow again."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE_BASE64" ] || missing="$missing KEYSTORE_BASE64"
+          [ -n "$KEYSTORE_PASSWORD" ] || missing="$missing KEYSTORE_PASSWORD"
+          [ -n "$KEY_ALIAS" ] || missing="$missing KEY_ALIAS"
+          [ -n "$KEY_PASSWORD" ] || missing="$missing KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repo secrets:$missing. See 'Signing' in README.md."
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_FILE: ${{ runner.temp }}/release.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: bash ./gradlew --no-daemon --stacktrace assembleRelease -Pcorkboard.version="$GITHUB_REF_NAME"
+
+      - name: Rename APK
+        run: |
+          apk="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$apk" ]; then
+            echo "::error::Signed APK not found at $apk. Check the signing secrets."
+            exit 1
+          fi
+          cp "$apk" "Corkboard-$GITHUB_REF_NAME.apk"
+          ls -l "Corkboard-$GITHUB_REF_NAME.apk"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: Corkboard-${{ github.ref_name }}.apk
+
+      - name: Attach APK to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" "Corkboard-$GITHUB_REF_NAME.apk" --clobber --repo "$GITHUB_REPOSITORY"
