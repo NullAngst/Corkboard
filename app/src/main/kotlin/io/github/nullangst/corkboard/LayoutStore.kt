@@ -232,6 +232,9 @@ object Store {
         private set
     private lateinit var file: AtomicFile
 
+    /** True on the very first start, before any layout.json existed. */
+    var fresh = false
+
     /** Bumped on every save, so screens know to rebind. */
     var revision = 0
         private set
@@ -242,6 +245,7 @@ object Store {
         if (::layout.isInitialized) return
         filesDir = ctx.applicationContext.filesDir
         file = AtomicFile(File(filesDir, "layout.json"))
+        fresh = !file.baseFile.exists()
         layout = try {
             fromJson(JSONObject(String(file.readFully(), Charsets.UTF_8)))
         } catch (_: Exception) {

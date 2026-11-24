@@ -10,7 +10,6 @@
  */
 package io.github.nullangst.corkboard
 
-import android.animation.LayoutTransition
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Bitmap
@@ -52,14 +51,17 @@ class CellGrid(ctx: Context, var cols: Int, var rows: Int) : ViewGroup(ctx) {
         setWillNotDraw(false)
         clipChildren = false
         clipToPadding = false
-        layoutTransition = LayoutTransition().apply {
-            enableTransitionType(LayoutTransition.CHANGING)
-            disableTransitionType(LayoutTransition.APPEARING)
-            disableTransitionType(LayoutTransition.DISAPPEARING)
-            disableTransitionType(LayoutTransition.CHANGE_APPEARING)
-            disableTransitionType(LayoutTransition.CHANGE_DISAPPEARING)
-            setDuration(160)
+    }
+
+    /** Old positions of children, captured before a reorder so the next layout slides them over. */
+    private val slideFrom = HashMap<View, Point>()
+
+    fun animateNextLayout() {
+        for (i in 0 until childCount) {
+            val v = getChildAt(i)
+            slideFrom[v] = Point(v.left + v.translationX.roundToInt(), v.top + v.translationY.roundToInt())
         }
+        requestLayout()
     }
 
     val cellW: Float get() = (width - paddingLeft - paddingRight) / cols.toFloat()
@@ -97,7 +99,15 @@ class CellGrid(ctx: Context, var cols: Int, var rows: Int) : ViewGroup(ctx) {
             val left = (paddingLeft + lp.x * cellW).roundToInt()
             val top = (paddingTop + lp.y * cellH).roundToInt()
             v.layout(left, top, left + v.measuredWidth, top + v.measuredHeight)
+            val from = slideFrom[v] ?: continue
+            if (from.x != left || from.y != top) {
+                v.animate().cancel()
+                v.translationX = (from.x - left).toFloat()
+                v.translationY = (from.y - top).toFloat()
+                v.animate().translationX(0f).translationY(0f).setDuration(160).start()
+            }
         }
+        slideFrom.clear()
     }
 
     override fun checkLayoutParams(p: ViewGroup.LayoutParams?) = p is LP
@@ -169,6 +179,7 @@ class CellGrid(ctx: Context, var cols: Int, var rows: Int) : ViewGroup(ctx) {
 
     /** Live reorder preview: moves the given items' views to new cells. Anything not listed goes home. */
     fun preview(moves: Map<Item, Point>) {
+        if (childCount == 0) return
         var dirty = false
         for (i in 0 until childCount) {
             val lp = getChildAt(i).layoutParams as LP
@@ -182,7 +193,7 @@ class CellGrid(ctx: Context, var cols: Int, var rows: Int) : ViewGroup(ctx) {
                 dirty = true
             }
         }
-        if (dirty) requestLayout()
+        if (dirty) animateNextLayout()
     }
 }
 

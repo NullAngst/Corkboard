@@ -1258,7 +1258,9 @@ class HomeActivity : Activity() {
             emptySpaceMenu(downX, downY)
         }
 
-        private fun blocked() = drag != null || overlay != null || folderPanel != null || drawer.visibility == View.VISIBLE
+        /** Something else owns touches, unless this gesture is the one opening the drawer or flipping pages. */
+        private fun blocked() = mode <= 0 &&
+            (drag != null || overlay != null || folderPanel != null || drawer.visibility == View.VISIBLE)
 
         private fun itemViewAt(x: Float, y: Float): View? {
             val g = workspace.pages.getOrNull(workspace.current)

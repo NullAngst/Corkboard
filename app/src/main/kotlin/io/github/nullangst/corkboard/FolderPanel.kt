@@ -137,7 +137,7 @@ class FolderPanel(private val act: HomeActivity, val folder: FolderItem) : Frame
             lp.x = pos % cols
             lp.y = pos / cols
         }
-        grid.requestLayout()
+        grid.animateNextLayout()
     }
 
     fun commitOrder() {

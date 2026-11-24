@@ -189,6 +189,14 @@ object Apps {
             }
         }
 
+        // First start: everything already installed counts as seen. The home screen starts empty
+        // and the drawer holds every app, instead of 150 icons spilling across a dozen pages.
+        if (Store.fresh) {
+            Store.fresh = false
+            for (key in apps.keys) l.seen.add(key.toString())
+            changed = true
+        }
+
         // New apps.
         for (key in apps.keys) {
             val s = key.toString()
