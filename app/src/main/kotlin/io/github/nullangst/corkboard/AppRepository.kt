@@ -108,7 +108,7 @@ object Apps {
             } catch (_: Exception) {
                 false
             }
-            if (list.isNotEmpty() || (unlocked && !isQuiet(s))) trusted.add(s)
+            if (unlocked && !isQuiet(s)) trusted.add(s)
         }
         return trusted
     }

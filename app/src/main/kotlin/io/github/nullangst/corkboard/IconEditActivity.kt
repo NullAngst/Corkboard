@@ -247,23 +247,34 @@ class IconEditActivity : Activity() {
         if (requestCode != reqPhoto && requestCode != reqFile) return
         val uri = data?.data ?: return
         if (resultCode != RESULT_OK) return
-        try {
-            val src = ImageDecoder.createSource(contentResolver, uri)
-            val bmp = ImageDecoder.decodeBitmap(src) { dec, info, _ ->
-                val m = max(info.size.width, info.size.height)
-                val k = min(1f, 432f / m)
-                dec.setTargetSize((info.size.width * k).roundToInt().coerceAtLeast(1), (info.size.height * k).roundToInt().coerceAtLeast(1))
-                dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        // ImageDecoder must not run on the main thread.
+        Thread {
+            val path = try {
+                val src = ImageDecoder.createSource(contentResolver, uri)
+                val bmp = ImageDecoder.decodeBitmap(src) { dec, info, _ ->
+                    val m = max(info.size.width, info.size.height)
+                    val k = min(1f, 432f / m)
+                    dec.setTargetSize((info.size.width * k).roundToInt().coerceAtLeast(1), (info.size.height * k).roundToInt().coerceAtLeast(1))
+                    dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                }
+                IconRenderer.saveCustom(bmp, "custom-${System.currentTimeMillis()}.png")
+            } catch (_: Exception) {
+                null
             }
-            dropPicked()
-            val path = IconRenderer.saveCustom(bmp, "custom-${System.currentTimeMillis()}.png")
-            picked = path
-            s.source = "custom"
-            s.file = path
-            build()
-        } catch (_: Exception) {
+            runOnUiThread { usePicked(path) }
+        }.start()
+    }
+
+    private fun usePicked(path: String?) {
+        if (path == null) {
             Toast.makeText(this, "Couldn't read that image", Toast.LENGTH_SHORT).show()
+            return
         }
+        dropPicked()
+        picked = path
+        s.source = "custom"
+        s.file = path
+        build()
     }
 
     /** A picked image that was replaced or never saved is deleted; the original file is never touched. */

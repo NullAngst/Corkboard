@@ -315,6 +315,7 @@ class IconView(ctx: Context) : View(ctx) {
     var downY = 0f
 
     private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val dst = RectF()
     private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 12f, resources.displayMetrics)
         textAlign = Paint.Align.CENTER
@@ -352,7 +353,8 @@ class IconView(ctx: Context) : View(ctx) {
         val top = iconTop()
         if (b != null) {
             val l = (width - size) / 2f
-            canvas.drawBitmap(b, null, RectF(l, top, l + size, top + size), iconPaint)
+            dst.set(l, top, l + size, top + size)
+            canvas.drawBitmap(b, null, dst, iconPaint)
         }
         if (showLabel && label.isNotEmpty()) {
             val pad = resources.displayMetrics.density * 4
