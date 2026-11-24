@@ -234,6 +234,8 @@ class HomeActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // A drawer left half-closed by an interrupted animation must never sit invisible over the home screen.
+        if (!drawer.isOpen && drawer.visibility == View.VISIBLE) drawer.close(animate = false)
         if (Store.revision != boundRevision) rebind()
         updateBanner()
     }
@@ -1255,14 +1257,19 @@ class HomeActivity : Activity() {
         private var downOnWidget = false
         private val slop = ViewConfiguration.get(context).scaledTouchSlop
         private val longPress = Runnable {
-            android.util.Log.d("CorkTouch", "longPress fired")
             mode = -1
             emptySpaceMenu(downX, downY)
         }
 
-        /** Something else owns touches, unless this gesture is the one opening the drawer or flipping pages. */
-        private fun blocked() = mode <= 0 &&
-            (drag != null || overlay != null || folderPanel != null || drawer.visibility == View.VISIBLE)
+        /**
+         * Something else owns touches, unless this gesture is the one opening the drawer or flipping pages.
+         * The activity's fields are named explicitly: inside a View, a bare "overlay" is View.getOverlay(),
+         * which is never null, and that silently blocked every gesture on the home screen.
+         */
+        private fun blocked() = mode <= 0 && (
+            this@HomeActivity.drag != null || this@HomeActivity.overlay != null ||
+                this@HomeActivity.folderPanel != null || this@HomeActivity.drawer.isShown
+            )
 
         private fun itemViewAt(x: Float, y: Float): View? {
             val g = workspace.pages.getOrNull(workspace.current)
@@ -1336,20 +1343,10 @@ class HomeActivity : Activity() {
             return mode > 0
         }
 
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-            if (ev.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CorkTouch", "intercept ${ev.actionMasked} mode=$mode blocked=${blocked()} drag=${drag != null} overlay=${overlay != null} folder=${folderPanel != null} drawerVis=${drawer.visibility}")
-            return track(ev)
-        }
-
-        override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-            val r = super.dispatchTouchEvent(ev)
-            if (ev.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CorkTouch", "dispatch ${ev.actionMasked} -> $r")
-            return r
-        }
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = track(ev)
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(ev: MotionEvent): Boolean {
-            android.util.Log.d("CorkTouch", "touch ${ev.actionMasked} mode=$mode blocked=${blocked()}")
             if (blocked()) return super.onTouchEvent(ev)
             track(ev)
             return true
