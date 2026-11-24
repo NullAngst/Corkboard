@@ -142,6 +142,7 @@ object Ui {
 class SettingsActivity : Activity() {
     private val reqExport = 31
     private val reqImport = 32
+    private val reqTree = 33
     private lateinit var pal: Palette
     private lateinit var scroll: ScrollView
     private lateinit var list: LinearLayout
@@ -256,6 +257,10 @@ class SettingsActivity : Activity() {
             s.autoAdd = it
             changed()
         })
+        add(Ui.switchRow(this, pal, str(R.string.s_rotation), s.allowRotation, str(R.string.s_rotation_sub)) {
+            s.allowRotation = it
+            changed()
+        })
 
         add(Ui.header(this, pal, str(R.string.s_drawer)))
         add(Ui.switchRow(this, pal, str(R.string.s_drawer_keyboard), s.drawerKeyboard) {
@@ -352,6 +357,21 @@ class SettingsActivity : Activity() {
             })
         }
 
+        add(Ui.header(this, pal, str(R.string.s_haptics)))
+        add(Ui.switchRow(this, pal, str(R.string.s_haptics_all), s.haptics, str(R.string.s_haptics_all_sub)) {
+            s.haptics = it
+            changed()
+            build()
+        })
+        if (s.haptics) {
+            for (t in Haptics.triggers) {
+                add(Ui.switchRow(this, pal, str(Haptics.name(t)), t !in s.hapticOff) {
+                    if (it) s.hapticOff.remove(t) else s.hapticOff.add(t)
+                    changed()
+                }.apply { setPadding(Ui.dp(context, 40f), paddingTop, paddingRight, paddingBottom) })
+            }
+        }
+
         add(Ui.header(this, pal, str(R.string.s_look)))
         add(Ui.row(this, pal, str(R.string.s_theme), Themes.name(this, s.theme)) {
             choose(str(R.string.s_theme), Themes.ids.map { Themes.name(this, it) }, Themes.ids.indexOf(s.theme)) {
@@ -386,6 +406,39 @@ class SettingsActivity : Activity() {
             }
         })
 
+        add(Ui.switchRow(this, pal, str(R.string.b_auto), s.autoBackupOn && s.autoBackupUri != null, backupStatus()) {
+            if (it && s.autoBackupUri == null) {
+                pickFolder()
+            } else {
+                s.autoBackupOn = it
+                changed()
+                build()
+            }
+        })
+        if (s.autoBackupOn && s.autoBackupUri != null) {
+            add(Ui.row(this, pal, str(R.string.b_folder), AutoBackup.folderLabel(s.autoBackupUri)) { pickFolder() })
+            add(Ui.row(this, pal, str(R.string.b_freq), str(AutoBackup.freqName(s.autoBackupFreq))) {
+                choose(str(R.string.b_freq), AutoBackup.frequencies.map { str(AutoBackup.freqName(it)) }, AutoBackup.frequencies.indexOf(s.autoBackupFreq)) {
+                    s.autoBackupFreq = AutoBackup.frequencies[it]
+                    changed()
+                    build()
+                }
+            })
+            add(Ui.row(this, pal, str(R.string.b_keep), getString(R.string.b_keep_sub, s.autoBackupKeep)) {
+                choose(str(R.string.b_keep), AutoBackup.keepChoices.map { it.toString() }, AutoBackup.keepChoices.indexOf(s.autoBackupKeep)) {
+                    s.autoBackupKeep = AutoBackup.keepChoices[it]
+                    changed()
+                    build()
+                }
+            })
+            add(Ui.row(this, pal, str(R.string.b_now), null) {
+                AutoBackup.backupNow(this) { ok ->
+                    Toast.makeText(this, if (ok) R.string.b_saved else R.string.b_save_failed, Toast.LENGTH_SHORT).show()
+                    build()
+                }
+            })
+        }
+
         add(Ui.header(this, pal, str(R.string.s_about)))
         val version = try {
             packageManager.getPackageInfo(packageName, 0).versionName
@@ -402,6 +455,26 @@ class SettingsActivity : Activity() {
         list.addView(View(this), LinearLayout.LayoutParams(1, Ui.dp(this, 24f)))
     }
 
+    private fun backupStatus(): String {
+        val s = Store.layout.settings
+        if (!s.autoBackupOn || s.autoBackupUri == null) return getString(R.string.b_auto_sub_off)
+        s.autoBackupError?.let { return getString(R.string.b_failed, it) }
+        if (s.lastAutoBackup <= 0) return getString(R.string.b_never)
+        val at = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT).format(Date(s.lastAutoBackup))
+        return getString(R.string.b_last, at)
+    }
+
+    private fun pickFolder() {
+        val i = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+        )
+        try {
+            startActivityForResult(i, reqTree)
+        } catch (_: Exception) {
+            Toast.makeText(this, R.string.no_picker, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun cacheSummary(): String {
         val mb = Store.layout.settings.diskCacheMb
         if (mb == 0) return getString(R.string.s_cache_sub_off)
@@ -413,6 +486,27 @@ class SettingsActivity : Activity() {
         val uri = data?.data
         if (resultCode != RESULT_OK || uri == null) return
         when (requestCode) {
+            reqTree -> {
+                val s = Store.layout.settings
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                try {
+                    contentResolver.takePersistableUriPermission(uri, flags)
+                    s.autoBackupUri?.takeIf { it != uri.toString() }?.let { old ->
+                        try {
+                            contentResolver.releasePersistableUriPermission(Uri.parse(old), flags)
+                        } catch (_: Exception) {
+                        }
+                    }
+                    s.autoBackupUri = uri.toString()
+                    s.autoBackupOn = true
+                    s.autoBackupError = null
+                    changed()
+                    AutoBackup.backupNow(this) { build() }
+                } catch (_: Exception) {
+                    Toast.makeText(this, R.string.b_save_failed, Toast.LENGTH_SHORT).show()
+                }
+                build()
+            }
             reqExport -> try {
                 contentResolver.openOutputStream(uri)?.use { Store.exportZip(it) }
                 Toast.makeText(this, R.string.s_exported, Toast.LENGTH_SHORT).show()
@@ -428,6 +522,14 @@ class SettingsActivity : Activity() {
                     } catch (_: Exception) {
                     }
                 }
+                // Backup settings belong to this phone: its folder permission doesn't travel in a zip.
+                val here = Store.layout.settings
+                restored.settings.autoBackupOn = here.autoBackupOn
+                restored.settings.autoBackupUri = here.autoBackupUri
+                restored.settings.autoBackupFreq = here.autoBackupFreq
+                restored.settings.autoBackupKeep = here.autoBackupKeep
+                restored.settings.lastAutoBackup = here.lastAutoBackup
+                restored.settings.autoBackupError = here.autoBackupError
                 Store.replace(restored)
                 Apps.reload()
                 // Apps installed here but not in the backup are not "new"; don't scatter them on the home screen.
