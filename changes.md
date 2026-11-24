@@ -1,5 +1,18 @@
 # Changes
 
+2026.11.24 - Bug fixes
+
+* Fixed: no gestures worked on an empty home screen (no drawer, no long-press menu, no page swipes). The gesture code read Android's built-in View.getOverlay(), which is never empty, instead of the launcher's own menu overlay, so it always thought a menu was open
+* Fixed: a quick swipe up could close the drawer instead of opening it when the first frame of the drawer was slow to draw; the drawer now uses the lift-off point and opens on any upward swipe past a fifth of the screen or any upward fling
+* A drawer left half-closed by an interrupted animation resets itself when the home screen comes back
+* Long-pressing an app in the drawer and moving it now closes the drawer straight away so you can place it on the home screen
+* Drawer background is fully opaque, so home screen icons no longer show through
+* Status bar icons turn dark over a light drawer
+* Popup menus no longer clip their last row
+* README screenshots of the home screen, drawer and an open folder
+
+Reasons for changes: the first real-device install showed a dead home screen. Reproduced and verified on an Android 15 emulator driven over adb.
+
 2026.11.24 - Feature update
 
 * Themed icons on Android 13+: each app's monochrome layer tinted with the wallpaper colors, toggle in settings, off by default

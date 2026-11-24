@@ -8,6 +8,7 @@ package io.github.nullangst.corkboard
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.graphics.Rect
+import android.os.Build
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
@@ -15,6 +16,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.WindowInsetsController
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.AbsListView
@@ -134,7 +136,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
 
     fun applyTheme() {
         val pal = act.pal
-        setBackgroundColor((pal.bg and 0x00FFFFFF) or (0xF2 shl 24))
+        setBackgroundColor(pal.bg or (0xFF shl 24))
         search.setTextColor(pal.text)
         search.setHintTextColor(pal.textDim)
         search.background = pal.card(act, pal.surface, 24f)
@@ -191,13 +193,24 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         translationY = (h - dist).coerceIn(0f, h)
     }
 
+    /** Opens on an upward fling, or on any swipe past a fifth of the screen that isn't flung back down. */
     fun releaseOpen(vy: Float) {
-        if (vy < -fling || translationY < height * 0.7f) open() else close()
+        val h = height.toFloat().takeIf { it > 0 } ?: resources.displayMetrics.heightPixels.toFloat()
+        val dist = h - translationY
+        if (vy < -fling / 2 || (vy < fling && dist > h * 0.2f)) open() else close()
+    }
+
+    /** Dark status bar icons over a light drawer, light ones back over the wallpaper. */
+    private fun lightBars(on: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val mask = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+        act.window.insetsController?.setSystemBarsAppearance(if (on) mask else 0, mask)
     }
 
     fun open() {
         if (visibility != VISIBLE) beginOpen()
         isOpen = true
+        lightBars(!act.pal.isDark)
         animate().translationY(0f).setDuration(220).start()
         act.onOverlayChanged()
         if (Store.layout.settings.drawerKeyboard) {
@@ -210,6 +223,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
 
     fun close(animate: Boolean = true) {
         isOpen = false
+        lightBars(false)
         act.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(windowToken, 0)
         search.clearFocus()
         if (animate && visibility == VISIBLE) {

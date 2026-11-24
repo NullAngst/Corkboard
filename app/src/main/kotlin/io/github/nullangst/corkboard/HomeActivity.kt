@@ -234,6 +234,8 @@ class HomeActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        // A drawer left half-closed by an interrupted animation must never sit invisible over the home screen.
+        if (!drawer.isOpen && drawer.visibility == View.VISIBLE) drawer.close(animate = false)
         if (Store.revision != boundRevision) rebind()
         updateBanner()
     }
@@ -616,7 +618,7 @@ class HomeActivity : Activity() {
         val x = (anchor.centerX() - cw / 2f).roundToInt().coerceIn(m, (screenW - cw - m).coerceAtLeast(m))
         val above = anchor.top - ch - m
         val y = if (above > bars.top + m) above.roundToInt() else (anchor.bottom + m).roundToInt().coerceAtMost((screenH - ch - m).coerceAtLeast(m))
-        frame.addView(card, FrameLayout.LayoutParams(cw, ch).apply {
+        frame.addView(card, FrameLayout.LayoutParams(cw, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = x
             topMargin = y
         })
@@ -949,8 +951,9 @@ class HomeActivity : Activity() {
             if (!st.moved) return
             closeFolder()
         }
+        // Lifting an app in the drawer and moving it drops you on the home screen to place it.
         if (drawer.isOpen) {
-            if (st.source == Src.DRAWER && st.startY - y > 48 * d) drawer.close() else return
+            if (st.source == Src.DRAWER && st.moved) drawer.close() else return
         }
         if (!st.moved) return
 
@@ -1258,9 +1261,15 @@ class HomeActivity : Activity() {
             emptySpaceMenu(downX, downY)
         }
 
-        /** Something else owns touches, unless this gesture is the one opening the drawer or flipping pages. */
-        private fun blocked() = mode <= 0 &&
-            (drag != null || overlay != null || folderPanel != null || drawer.visibility == View.VISIBLE)
+        /**
+         * Something else owns touches, unless this gesture is the one opening the drawer or flipping pages.
+         * The activity's fields are named explicitly: inside a View, a bare "overlay" is View.getOverlay(),
+         * which is never null, and that silently blocked every gesture on the home screen.
+         */
+        private fun blocked() = mode <= 0 && (
+            this@HomeActivity.drag != null || this@HomeActivity.overlay != null ||
+                this@HomeActivity.folderPanel != null || this@HomeActivity.drawer.isShown
+            )
 
         private fun itemViewAt(x: Float, y: Float): View? {
             val g = workspace.pages.getOrNull(workspace.current)
@@ -1323,7 +1332,11 @@ class HomeActivity : Activity() {
                     val vy = vt?.yVelocity ?: 0f
                     when (mode) {
                         1 -> workspace.release(vx)
-                        2 -> drawer.releaseOpen(vy)
+                        2 -> {
+                            // A busy frame can swallow the last moves; the lift-off point is the truth.
+                            drawer.trackOpen(downY - ev.y)
+                            drawer.releaseOpen(vy)
+                        }
                         3 -> if (vy > 600 * d) Shade.expand(this@HomeActivity)
                     }
                     val m = mode
