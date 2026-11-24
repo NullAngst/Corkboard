@@ -37,7 +37,7 @@ shot 01-home
 adb shell input swipe "$cx" "$cy" "$cx" "$cy" 1500
 shot 02-longpress-menu
 adb shell input keyevent KEYCODE_BACK
-adb shell input swipe "$cx" $((h * 70 / 100)) "$cx" $((h * 25 / 100)) 250
+adb shell input swipe "$cx" $((h * 70 / 100)) "$cx" $((h * 25 / 100)) 500
 shot 03-drawer 1.5
 read -r ix iy name < <(first_icon "$out/03-drawer.xml")
 printf 'first drawer icon: %s at %s,%s\n' "$name" "$ix" "$iy" > "$out/info.txt"
@@ -60,4 +60,5 @@ shot 07-drawer-menu
 adb shell input keyevent KEYCODE_HOME
 shot 08-home-final 2
 adb logcat -d > "$out/logcat.txt"
+adb logcat -d -s CorkTouch AndroidRuntime > "$out/cork.txt"
 adb logcat -d -b crash > "$out/crash.txt"

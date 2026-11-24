@@ -1313,6 +1313,7 @@ class HomeActivity : Activity() {
                             Shade.available && Store.layout.settings.swipeDown -> 3
                             else -> -1
                         }
+                        android.util.Log.d("CorkTouch", "mode=$mode dx=$dx dy=$dy")
                         if (mode == 1) workspace.beginDrag()
                         if (mode == 2) drawer.beginOpen()
                     }
