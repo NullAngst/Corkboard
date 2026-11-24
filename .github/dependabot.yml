@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # The Android Gradle Plugin version in build.gradle.kts and the Gradle wrapper.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+
+  # actions/checkout, actions/setup-java, actions/attest-build-provenance.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

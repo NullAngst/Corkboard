@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Corkboard</string>
+    <string name="settings">Launcher settings</string>
+    <string name="edit_icon">Edit icon</string>
+</resources>
