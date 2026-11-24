@@ -8,6 +8,14 @@ Install an app and it shows up on the home screen and in the app drawer. Drag it
 - No `INTERNET` permission. A launcher has no reason to talk to the network, and leaving the permission out proves it.
 - Android 10 (API 29) and newer.
 
+<p>
+  <img src="docs/screenshots/home.png" width="250" alt="Home screen with apps, a folder and the dock">
+  <img src="docs/screenshots/drawer.png" width="250" alt="App drawer with search">
+  <img src="docs/screenshots/folder.png" width="250" alt="An open folder">
+</p>
+
+Home screen, app drawer and an open folder, on an Android 15 emulator with the default theme and shape.
+
 ## What it does
 
 - Home screen grid with multiple pages and free placement (default 4 x 6, adjustable from 3 to 6 columns and 4 to 8 rows).
@@ -44,7 +52,8 @@ App shortcuts, pinned shortcuts and pausing work apps only work once Corkboard i
 On first start the home screen is empty and every app is in the drawer. Everything installed at that point counts as already seen, so it does not spill 150 icons across a dozen pages. Apps installed after that land on the home screen while "Add new apps to home screen" is on.
 
 - **Tap** an app to open it. **Long-press** to lift it. Let go without moving to get its menu.
-- **Swipe up** for the drawer, **swipe down** for notifications, **swipe left or right** for pages.
+- **Swipe up** from anywhere above the navigation bar for the drawer, **swipe down** for notifications, **swipe left or right** for pages. With gesture navigation, a swipe that starts on the very bottom edge belongs to Android and goes to recents instead.
+- **Long-press an app in the drawer** and start moving it: the drawer drops away and you place it on the home screen. Let go without moving for its menu.
 - **Long-press empty space** for Wallpaper, Widgets and Launcher settings.
 - **Home button** while on the home screen closes whatever is open and jumps to page 1.
 
