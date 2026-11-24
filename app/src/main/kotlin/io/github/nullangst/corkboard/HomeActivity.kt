@@ -213,6 +213,7 @@ class HomeActivity : Activity() {
         Apps.shortcutsListener = { if (drag == null) rebind() }
         Apps.reconcile()
         rebind()
+        onOverlayChanged()
     }
 
     override fun onStart() {
@@ -540,19 +541,15 @@ class HomeActivity : Activity() {
         return true
     }
 
-    /** Registers the Android 13+ back callback only while something is open. */
+    /**
+     * Android 13+: one back callback, always registered, so back on the home screen never runs the
+     * system's back-to-home animation. It closes whatever is open, or does nothing.
+     */
     fun onOverlayChanged() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
-        val open = overlay != null || folderPanel != null || drawer.isOpen
-        val cb = backCallback as? OnBackInvokedCallback
-        if (open && cb == null) {
-            val n = OnBackInvokedCallback { handleBack() }
-            onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, n)
-            backCallback = n
-        } else if (!open && cb != null) {
-            onBackInvokedDispatcher.unregisterOnBackInvokedCallback(cb)
-            backCallback = null
-        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || backCallback != null) return
+        val cb = OnBackInvokedCallback { handleBack() }
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, cb)
+        backCallback = cb
     }
 
     private fun rectInRoot(v: View): RectF {
