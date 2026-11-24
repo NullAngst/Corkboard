@@ -38,6 +38,8 @@ App shortcuts, pinned shortcuts and pausing work apps only work once Corkboard i
 
 ## Using it
 
+On first start the home screen is empty and every app is in the drawer. Everything installed at that point counts as already seen, so it does not spill 150 icons across a dozen pages. Apps installed after that land on the home screen while "Add new apps to home screen" is on.
+
 - **Tap** an app to open it. **Long-press** to lift it. Let go without moving to get its menu.
 - **Swipe up** for the drawer, **swipe down** for notifications, **swipe left or right** for pages.
 - **Long-press empty space** for Wallpaper, Widgets and Launcher settings.
