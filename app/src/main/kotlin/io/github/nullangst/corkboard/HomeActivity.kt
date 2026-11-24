@@ -618,7 +618,7 @@ class HomeActivity : Activity() {
         val x = (anchor.centerX() - cw / 2f).roundToInt().coerceIn(m, (screenW - cw - m).coerceAtLeast(m))
         val above = anchor.top - ch - m
         val y = if (above > bars.top + m) above.roundToInt() else (anchor.bottom + m).roundToInt().coerceAtMost((screenH - ch - m).coerceAtLeast(m))
-        frame.addView(card, FrameLayout.LayoutParams(cw, ch).apply {
+        frame.addView(card, FrameLayout.LayoutParams(cw, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             leftMargin = x
             topMargin = y
         })
