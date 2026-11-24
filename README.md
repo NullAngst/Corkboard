@@ -34,7 +34,10 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 - Work profile: badged icons, Work tab, pause work apps.
 - Hide apps, rename labels, lock the layout.
 - Themes for the launcher's own surfaces: Follow system, Light, Dark, Verdigris, Kawaii Light, Kawaii Dark.
-- Backup and restore of the layout and custom icons to one zip file.
+- Backup and restore of the layout and custom icons to one zip file, plus automatic backups to a folder you pick.
+- Haptics, with a master switch and a switch per moment.
+- Drag an icon to the top of the screen to Remove it, or Uninstall the app.
+- Home screen stays upright unless you allow rotation.
 - Swipe down anywhere on the home screen for the notification shade.
 
 Left out on purpose: a Google feed page, notification dots, icon packs, Private space, double-tap to lock.
@@ -56,6 +59,18 @@ On first start the home screen is empty and every app is in the drawer. Everythi
 - **Long-press an app in the drawer** and start moving it: the drawer drops away and you place it on the home screen. Let go without moving for its menu.
 - **Long-press empty space** for Wallpaper, Widgets and Launcher settings.
 - **Home button** while on the home screen closes whatever is open and jumps to page 1.
+
+### Removing and uninstalling by dragging
+
+While you drag an icon, a bar appears at the top of the screen. Drop on **Remove** to take it off the home screen, dock or folder (the app stays in the drawer). Drop on **Uninstall** to open Android's uninstall dialog; the icon goes back where it was until the app is actually gone. Uninstall only shows for apps that can be uninstalled, and Remove doesn't show when dragging out of the drawer. The bar sits over the top of the first row while you drag, so to drop into the top row aim for the lower half of the cell.
+
+### Haptics
+
+Launcher settings, **Haptics**. **Vibration feedback** turns it all on or off. Under it, each moment has its own switch: opening the app drawer, lifting an icon or opening a menu, making or adding to a folder, placing an icon, icons moving aside or no room, changing page while dragging, and the Remove and Uninstall targets. It uses Android's built-in haptic effects, so the feel comes from the phone, it needs no vibration permission, and it also follows Android's own "Touch feedback" setting. On Android 10 to 13 some effects fall back to plainer ones.
+
+### Rotation
+
+The home screen stays in the phone's natural orientation. Turn on **Allow home screen rotation** under Layout if you want it to follow the phone. The grid doesn't rearrange itself for landscape, so a portrait layout looks stretched sideways.
 
 ### Themed icons
 
@@ -84,6 +99,7 @@ Lint fails the build if a string is missing from any language, so a new string h
 - **Recents and gesture animations.** On a Pixel, the recents screen and the swipe-up-to-home animation belong to Pixel Launcher. With any third-party launcher set as home, recents keeps working but the home transition is plainer. Lawnchair gets around this only with root (QuickSwitch). Nothing to build here, just expect it.
 - **Swipe down for notifications** uses a hidden Android API (`StatusBarManager.expandNotificationsPanel`). Google can block it in any release. If that happens the gesture quietly does nothing and the setting greys out with "Not supported on this Android version". Swiping down from the very top edge always works.
 - **Widgets** need no permission in the manifest. Android shows its own "Allow Corkboard to create widgets" prompt the first time you add a widget from each app.
+- **Automatic backup.** Under Backup, turn on **Automatic backup** and pick a folder in Android's folder picker. Corkboard gets permission for that one folder only and needs no storage permission. Choose **How often**: after changes (a minute after the last change), daily, weekly or monthly. Daily, weekly and monthly run when you return to the home screen and the last backup is that old, so a phone that sits untouched won't back up until it's used. **Backups to keep** is 1, 3, 5, 10 or 30; older automatic backups (`corkboard-auto-*.zip`) are deleted, and manual exports in the same folder are never touched. If the folder goes away or the permission is revoked, the setting shows the error. Restoring a backup on another phone keeps that phone's own automatic backup settings.
 - **Restoring a backup** brings back the layout and custom icons. Widget IDs belong to the phone, so restored widget spots ask to be set up again with one tap each. Android's own cloud backup is off, so the only backup is the one you export.
 
 ## Permissions

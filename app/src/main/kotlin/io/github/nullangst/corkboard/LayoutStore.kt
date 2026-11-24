@@ -81,6 +81,20 @@ class Settings {
     /** Disk icon cache size in MB. 0 turns it off. */
     var diskCacheMb = 25
 
+    var allowRotation = false
+
+    /** Master haptics switch, and the triggers turned off one by one (so new triggers start on). */
+    var haptics = true
+    val hapticOff: MutableSet<String> = linkedSetOf()
+
+    /** Automatic backup: on/off, a folder tree URI the user granted, how often, and how many to keep. */
+    var autoBackupOn = false
+    var autoBackupUri: String? = null
+    var autoBackupFreq = "daily"
+    var autoBackupKeep = 3
+    var lastAutoBackup = 0L
+    var autoBackupError: String? = null
+
     /** "fingerprint|versionCode" of the build where the swipe-down hidden API failed. */
     var shadeBroken: String? = null
 }
@@ -245,8 +259,11 @@ object Store {
 
     val iconsDir: File get() = File(filesDir, "icons").apply { mkdirs() }
 
+    private var app: Context? = null
+
     fun init(ctx: Context) {
         if (::layout.isInitialized) return
+        app = ctx.applicationContext
         filesDir = ctx.applicationContext.filesDir
         file = AtomicFile(File(filesDir, "layout.json"))
         fresh = !file.baseFile.exists()
@@ -257,7 +274,14 @@ object Store {
         }
     }
 
+    /** Saves, and lets automatic backup know something changed. */
     fun save() {
+        saveQuiet()
+        app?.let { AutoBackup.changed(it) }
+    }
+
+    /** Saves without counting as a layout change (backup status, bookkeeping). */
+    fun saveQuiet() {
         revision++
         val out = try {
             file.startWrite()
@@ -369,6 +393,15 @@ object Store {
                 put("swipeDown", s.swipeDown)
                 put("themedIcons", s.themedIcons)
                 put("diskCacheMb", s.diskCacheMb)
+                put("allowRotation", s.allowRotation)
+                put("haptics", s.haptics)
+                put("hapticOff", JSONArray(s.hapticOff.toList()))
+                s.autoBackupUri?.let { put("autoBackupUri", it) }
+                put("autoBackupOn", s.autoBackupOn)
+                put("autoBackupFreq", s.autoBackupFreq)
+                put("autoBackupKeep", s.autoBackupKeep)
+                put("lastAutoBackup", s.lastAutoBackup)
+                s.autoBackupError?.let { put("autoBackupError", it) }
                 s.shadeBroken?.let { put("shadeBroken", it) }
             })
             put("pages", JSONArray().apply {
@@ -410,6 +443,15 @@ object Store {
             s.swipeDown = j.optBoolean("swipeDown", true)
             s.themedIcons = j.optBoolean("themedIcons", false)
             s.diskCacheMb = j.optInt("diskCacheMb", 25).coerceIn(0, 2000)
+            s.allowRotation = j.optBoolean("allowRotation", false)
+            s.haptics = j.optBoolean("haptics", true)
+            j.optJSONArray("hapticOff")?.let { a -> for (i in 0 until a.length()) s.hapticOff.add(a.optString(i)) }
+            s.autoBackupUri = if (j.has("autoBackupUri")) j.optString("autoBackupUri") else null
+            s.autoBackupOn = j.optBoolean("autoBackupOn", false)
+            s.autoBackupFreq = j.optString("autoBackupFreq", "daily")
+            s.autoBackupKeep = j.optInt("autoBackupKeep", 3).coerceIn(1, 100)
+            s.lastAutoBackup = j.optLong("lastAutoBackup", 0)
+            s.autoBackupError = if (j.has("autoBackupError")) j.optString("autoBackupError") else null
             s.shadeBroken = if (j.has("shadeBroken")) j.optString("shadeBroken") else null
         }
         l.pages.clear()
@@ -454,10 +496,13 @@ object Store {
 
     // ---- Backup ----
 
-    fun exportZip(out: OutputStream) {
+    /** The layout as backup bytes. Call on the main thread; the zip itself can be written anywhere. */
+    fun backupJson(): ByteArray = toJson(layout).toString(1).toByteArray(Charsets.UTF_8)
+
+    fun exportZip(out: OutputStream, json: ByteArray = backupJson()) {
         ZipOutputStream(out).use { zip ->
             zip.putNextEntry(ZipEntry("layout.json"))
-            zip.write(toJson(layout).toString(1).toByteArray(Charsets.UTF_8))
+            zip.write(json)
             zip.closeEntry()
             iconsDir.listFiles()?.forEach { f ->
                 zip.putNextEntry(ZipEntry("icons/" + f.name))

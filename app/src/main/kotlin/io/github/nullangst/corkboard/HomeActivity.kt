@@ -14,6 +14,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.ShortcutInfo
 import android.graphics.Point
 import android.graphics.Rect
@@ -27,7 +28,6 @@ import android.os.Looper
 import android.provider.Settings
 import android.view.DragEvent
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.VelocityTracker
@@ -173,6 +173,9 @@ class HomeActivity : Activity() {
         var edgeDir = 0
         var pendingMenu = false
 
+        /** 0 none, 1 over Remove, 2 over Uninstall. */
+        var dropHover = 0
+
         val isApp get() = item is AppItem || ((source == Src.DRAWER || source == Src.FOLDER) && appKey != null)
         val isWidget get() = item is WidgetItem || source == Src.PICKER
         val key: AppKey? get() = appKey ?: (item as? AppItem)?.key
@@ -196,6 +199,9 @@ class HomeActivity : Activity() {
     private var rebindPending = false
     private val d get() = resources.displayMetrics.density
     private var backCallback: Any? = null
+    private lateinit var dropBar: LinearLayout
+    private lateinit var dropRemove: TextView
+    private lateinit var dropUninstall: TextView
 
     // ---- Lifecycle ----
 
@@ -205,6 +211,7 @@ class HomeActivity : Activity() {
         Apps.init(this)
         Shade.init(this)
         pal = Themes.palette(this)
+        applyRotation()
         edgeToEdge()
         widgets = Widgets(this)
         buildViews()
@@ -226,6 +233,7 @@ class HomeActivity : Activity() {
 
     override fun onStop() {
         super.onStop()
+        AutoBackup.flush()
         try {
             widgets.host.stopListening()
         } catch (_: Exception) {
@@ -236,8 +244,20 @@ class HomeActivity : Activity() {
         super.onResume()
         // A drawer left half-closed by an interrupted animation must never sit invisible over the home screen.
         if (!drawer.isOpen && drawer.visibility == View.VISIBLE) drawer.close(animate = false)
+        applyRotation()
         if (Store.revision != boundRevision) rebind()
         updateBanner()
+        AutoBackup.periodicCheck(this)
+    }
+
+    /** Upright unless "Allow home screen rotation" is on. */
+    private fun applyRotation() {
+        val want = if (Store.layout.settings.allowRotation) {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_NOSENSOR
+        }
+        if (requestedOrientation != want) requestedOrientation = want
     }
 
     override fun onDestroy() {
@@ -317,6 +337,7 @@ class HomeActivity : Activity() {
         root.addView(homeCol, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         drawer = AppDrawer(this)
         root.addView(drawer, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        buildDropBar()
         root.setOnApplyWindowInsetsListener { _, wi ->
             applyInsets(wi)
             wi
@@ -336,6 +357,8 @@ class HomeActivity : Activity() {
         }
         homeCol.setPadding(bars.left, bars.top, bars.right, bars.bottom)
         drawer.setInsets(bars, ime)
+        dropBar.setPadding(bars.left, bars.top, bars.right, 0)
+        dropBar.layoutParams.height = bars.top + (64 * d).roundToInt()
         overlay?.let { if (it.tag == "full") it.setPadding(bars.left, bars.top, bars.right, bars.bottom) }
     }
 
@@ -626,7 +649,7 @@ class HomeActivity : Activity() {
     }
 
     private fun emptySpaceMenu(x: Float, y: Float) {
-        root.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        Haptics.play(root, Haptics.LIFT, Haptics.Fx.LIFT)
         showMenu(RectF(x, y, x, y), listOf(
             MenuEntry(getString(R.string.wallpaper)) {
                 try {
@@ -730,12 +753,7 @@ class HomeActivity : Activity() {
             } catch (_: Exception) {
             }
         })
-        if (!app.isSystem) entries.add(MenuEntry(getString(R.string.uninstall)) {
-            try {
-                startActivity(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", key.pkg, null)).putExtra(Intent.EXTRA_USER, app.user))
-            } catch (_: Exception) {
-            }
-        })
+        if (!app.isSystem) entries.add(MenuEntry(getString(R.string.uninstall)) { uninstall(app) })
         showMenu(anchor, entries)
     }
 
@@ -804,14 +822,17 @@ class HomeActivity : Activity() {
             drag = null
             return false
         }
-        v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+        Haptics.play(v, Haptics.LIFT, Haptics.Fx.LIFT)
         if (st.source == Src.PAGE || st.source == Src.DOCK || st.source == Src.FOLDER) v.visibility = View.INVISIBLE
         return true
     }
 
     private fun itemLongPress(v: View, item: Item, src: Src): Boolean {
         val st = DragState(src, item, v, if (src == Src.DOCK) 1 else item.w, if (src == Src.DOCK) 1 else item.h)
-        if (Store.layout.settings.locked || !startDrag(st, v)) itemMenu(st)
+        if (Store.layout.settings.locked || !startDrag(st, v)) {
+            Haptics.play(v, Haptics.LIFT, Haptics.Fx.LIFT)
+            itemMenu(st)
+        }
         return true
     }
 
@@ -843,6 +864,7 @@ class HomeActivity : Activity() {
         val t = st.folderCandidate ?: return@Runnable
         st.folderTarget = t
         (st.grid?.viewFor(t) as? IconView)?.hot = true
+        Haptics.play(root, Haptics.FOLDER, Haptics.Fx.TICK)
     }
 
     private val reorderRunnable = Runnable {
@@ -866,6 +888,7 @@ class HomeActivity : Activity() {
                 dots.count = l.pages.size
             }
             workspace.snapTo(target)
+            Haptics.play(root, Haptics.PAGE, Haptics.Fx.TICK)
             handler.postDelayed(this, 900)
         }
     }
@@ -907,6 +930,7 @@ class HomeActivity : Activity() {
             st.moves = m
             st.placeOk = true
             st.refused = false
+            if (m.isNotEmpty()) Haptics.play(root, Haptics.REORDER, Haptics.Fx.LIGHT)
             g.preview(m)
             g.showOutline(st.cellX, st.cellY, w, h, false)
         }
@@ -953,9 +977,29 @@ class HomeActivity : Activity() {
         }
         // Lifting an app in the drawer and moving it drops you on the home screen to place it.
         if (drawer.isOpen) {
-            if (st.source == Src.DRAWER && st.moved) drawer.close() else return
+            if (st.source == Src.DRAWER && st.moved) {
+                drawer.close()
+                Haptics.play(root, Haptics.PLACE, Haptics.Fx.TICK)
+            } else {
+                return
+            }
         }
         if (!st.moved) return
+
+        if (dropBar.visibility != View.VISIBLE) showDropBar(st)
+        val hover = dropTargetAt(x, y)
+        if (hover != st.dropHover) {
+            st.dropHover = hover
+            dropRemove.isActivated = hover == 1
+            dropUninstall.isActivated = hover == 2
+            styleDropTargets()
+            if (hover != 0) Haptics.play(root, Haptics.REMOVE, Haptics.Fx.TICK)
+        }
+        if (hover != 0) {
+            setEdge(st, 0)
+            clearTarget(st)
+            return
+        }
 
         val dockR = rectInRoot(dock)
         val wsR = rectInRoot(workspace)
@@ -1062,6 +1106,18 @@ class HomeActivity : Activity() {
             st.pendingMenu = st.source != Src.SHORTCUT && st.source != Src.PICKER
             return false
         }
+        when (st.dropHover) {
+            1 -> {
+                dropRemoveItem(st)
+                Haptics.play(root, Haptics.REMOVE, Haptics.Fx.CONFIRM)
+                return true
+            }
+            2 -> {
+                st.key?.let { k -> Apps.apps[k]?.let { uninstall(it) } }
+                Haptics.play(root, Haptics.REMOVE, Haptics.Fx.CONFIRM)
+                return false
+            }
+        }
         folderPanel?.let { p ->
             if (p.contains(x, y) && st.source == Src.FOLDER && st.folder === p.folder) {
                 p.commitOrder()
@@ -1071,8 +1127,13 @@ class HomeActivity : Activity() {
         st.folderTarget?.let { return dropIntoFolder(st, it) }
         if (st.grid == null) return false
         if (!st.placeOk && !st.refused) solveNow(st)
-        if (!st.placeOk || st.refused) return false
-        return commitPlace(st)
+        if (!st.placeOk || st.refused) {
+            Haptics.play(root, Haptics.REORDER, Haptics.Fx.REJECT)
+            return false
+        }
+        val ok = commitPlace(st)
+        if (ok) Haptics.play(root, Haptics.PLACE, Haptics.Fx.CONFIRM)
+        return ok
     }
 
     private fun dropIntoFolder(st: DragState, target: Item): Boolean {
@@ -1096,6 +1157,7 @@ class HomeActivity : Activity() {
         }
         l.fixFolders()
         Store.save()
+        Haptics.play(root, Haptics.FOLDER, Haptics.Fx.CONFIRM)
         return true
     }
 
@@ -1145,6 +1207,8 @@ class HomeActivity : Activity() {
 
     private fun onDragEnd(st: DragState, result: Boolean) {
         handler.removeCallbacks(flipRunnable)
+        hideDropBar()
+        st.dropHover = 0
         clearTarget(st)
         drag = null
         if (!result) st.view?.visibility = View.VISIBLE
@@ -1161,6 +1225,95 @@ class HomeActivity : Activity() {
         }
         rebind()
         workspace.snapTo(workspace.current, animate = false)
+    }
+
+    // ---- Drag-to-remove bar ----
+
+    private fun buildDropBar() {
+        dropBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            visibility = View.GONE
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0x99000000.toInt(), 0x00000000),
+            )
+        }
+        fun target(label: Int) = TextView(this).apply {
+            text = getString(label)
+            textSize = 15f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFFFFF.toInt())
+            setShadowLayer(4 * d, 0f, d, 0xAA000000.toInt())
+            val p = (14 * d).roundToInt()
+            setPadding(p * 2, p / 2, p * 2, p / 2)
+        }
+        dropRemove = target(R.string.remove)
+        dropUninstall = target(R.string.uninstall)
+        val lp = { LinearLayout.LayoutParams(0, (44 * d).roundToInt(), 1f).apply { setMargins((8 * d).roundToInt(), 0, (8 * d).roundToInt(), 0) } }
+        dropBar.addView(dropRemove, lp())
+        dropBar.addView(dropUninstall, lp())
+        root.addView(dropBar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (64 * d).roundToInt(), Gravity.TOP))
+    }
+
+    /** Remove for anything on the home screen, dock or in a folder; Uninstall for apps that can be. */
+    private fun showDropBar(st: DragState) {
+        if (st.source == Src.SHORTCUT || st.source == Src.PICKER) return
+        val canRemove = st.source == Src.PAGE || st.source == Src.DOCK || st.source == Src.FOLDER
+        val app = st.key?.let { Apps.apps[it] }
+        val canUninstall = app != null && !app.isSystem && st.item !is FolderItem
+        if (!canRemove && !canUninstall) return
+        dropRemove.visibility = if (canRemove) View.VISIBLE else View.GONE
+        dropUninstall.visibility = if (canUninstall) View.VISIBLE else View.GONE
+        dropRemove.isActivated = false
+        dropUninstall.isActivated = false
+        styleDropTargets()
+        dropBar.alpha = 0f
+        dropBar.visibility = View.VISIBLE
+        dropBar.animate().alpha(1f).setDuration(120).start()
+    }
+
+    private fun hideDropBar() {
+        dropBar.animate().cancel()
+        dropBar.visibility = View.GONE
+    }
+
+    private fun styleDropTargets() {
+        for (t in listOf(dropRemove, dropUninstall)) {
+            t.background = if (t.isActivated) pal.card(this, 0xCCD32F2F.toInt(), 22f) else null
+        }
+    }
+
+    private fun dropTargetAt(x: Float, y: Float): Int {
+        if (dropBar.visibility != View.VISIBLE) return 0
+        val bar = rectInRoot(dropBar)
+        if (!bar.contains(x, y)) return 0
+        val both = dropRemove.visibility == View.VISIBLE && dropUninstall.visibility == View.VISIBLE
+        return when {
+            both -> if (x < bar.centerX()) 1 else 2
+            dropRemove.visibility == View.VISIBLE -> 1
+            else -> 2
+        }
+    }
+
+    private fun dropRemoveItem(st: DragState) {
+        when (st.source) {
+            Src.PAGE, Src.DOCK -> st.item?.let { removeItem(it) }
+            Src.FOLDER -> {
+                val k = st.appKey ?: return
+                st.folder?.apps?.remove(k)
+                Store.layout.fixFolders()
+                Store.save()
+            }
+            else -> {}
+        }
+    }
+
+    private fun uninstall(app: AppInfo) {
+        try {
+            startActivity(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", app.key.pkg, null)).putExtra(Intent.EXTRA_USER, app.user))
+        } catch (_: Exception) {
+        }
     }
 
     // ---- Pages ----
@@ -1255,6 +1408,7 @@ class HomeActivity : Activity() {
         private var mode = 0 // 0 undecided, 1 pages, 2 drawer, 3 shade, -1 ignore
         private var vt: VelocityTracker? = null
         private var downOnWidget = false
+        private var drawerTicked = false
         private val slop = ViewConfiguration.get(context).scaledTouchSlop
         private val longPress = Runnable {
             mode = -1
@@ -1295,6 +1449,7 @@ class HomeActivity : Activity() {
                     downX = ev.x
                     downY = ev.y
                     mode = 0
+                    drawerTicked = false
                     vt?.clear()
                     vt?.addMovement(ev)
                     val hit = itemViewAt(ev.x, ev.y)
@@ -1318,7 +1473,13 @@ class HomeActivity : Activity() {
                     }
                     when (mode) {
                         1 -> workspace.dragTo(dx)
-                        2 -> drawer.trackOpen(-dy)
+                        2 -> {
+                            drawer.trackOpen(-dy)
+                            if (!drawerTicked && -dy > height * 0.2f) {
+                                drawerTicked = true
+                                Haptics.play(this, Haptics.DRAWER, Haptics.Fx.THRESHOLD)
+                            }
+                        }
                         3 -> if (dy > 48 * d) {
                             mode = -1
                             Shade.expand(this@HomeActivity)
