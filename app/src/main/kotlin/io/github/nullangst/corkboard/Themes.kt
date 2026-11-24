@@ -34,14 +34,16 @@ class Palette(
 object Themes {
     val ids = listOf("system", "light", "dark", "verdigris", "kawaii_light", "kawaii_dark")
 
-    fun name(id: String) = when (id) {
-        "light" -> "Light"
-        "dark" -> "Dark"
-        "verdigris" -> "Verdigris"
-        "kawaii_light" -> "Kawaii Light"
-        "kawaii_dark" -> "Kawaii Dark"
-        else -> "Follow system"
-    }
+    fun name(ctx: Context, id: String): String = ctx.getString(
+        when (id) {
+            "light" -> R.string.theme_light
+            "dark" -> R.string.theme_dark
+            "verdigris" -> R.string.theme_verdigris
+            "kawaii_light" -> R.string.theme_kawaii_light
+            "kawaii_dark" -> R.string.theme_kawaii_dark
+            else -> R.string.theme_system
+        },
+    )
 
     private fun c(v: Long) = v.toInt()
 

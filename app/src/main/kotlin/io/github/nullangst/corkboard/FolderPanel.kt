@@ -79,7 +79,7 @@ class FolderPanel(private val act: HomeActivity, val folder: FolderItem) : Frame
     }
 
     private fun commitName() {
-        val name = title.text.toString().trim().ifEmpty { "Folder" }
+        val name = title.text.toString().trim().ifEmpty { context.getString(R.string.folder_default) }
         title.isFocusableInTouchMode = false
         title.clearFocus()
         context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(title.windowToken, 0)

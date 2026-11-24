@@ -418,11 +418,11 @@ class HomeActivity : Activity() {
         val p = (12 * d).roundToInt()
         banner.setPadding(p, p / 2, p / 2, p / 2)
         banner.addView(TextView(this).apply {
-            text = "Corkboard isn't your home app yet."
+            text = getString(R.string.banner_not_default)
             setTextColor(pal.text)
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         banner.addView(TextView(this).apply {
-            text = "Set as default"
+            text = getString(R.string.set_as_default)
             setTextColor(pal.accent)
             setPadding(p, p, p, p)
             setOnClickListener { requestHomeRole(this@HomeActivity) }
@@ -472,17 +472,17 @@ class HomeActivity : Activity() {
         try {
             Apps.la.startMainActivity(key.component, user, bounds(v), clipReveal(v))
         } catch (_: Exception) {
-            Toast.makeText(this, "Can't open that app", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.cant_open_app, Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun askUnpause() {
         val u = Apps.workUser() ?: return
         AlertDialog.Builder(this, Themes.dialogTheme(pal))
-            .setTitle("Work apps are paused")
-            .setMessage("Turn on work apps?")
-            .setPositiveButton("Turn on") { _, _ -> Apps.setQuiet(u, false) }
-            .setNegativeButton("Cancel", null)
+            .setTitle(R.string.work_paused_title)
+            .setMessage(R.string.work_paused_msg)
+            .setPositiveButton(R.string.turn_on) { _, _ -> Apps.setQuiet(u, false) }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -626,14 +626,14 @@ class HomeActivity : Activity() {
     private fun emptySpaceMenu(x: Float, y: Float) {
         root.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
         showMenu(RectF(x, y, x, y), listOf(
-            MenuEntry("Wallpaper") {
+            MenuEntry(getString(R.string.wallpaper)) {
                 try {
-                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), "Wallpaper"))
+                    startActivity(Intent.createChooser(Intent(Intent.ACTION_SET_WALLPAPER), getString(R.string.wallpaper)))
                 } catch (_: Exception) {
                 }
             },
-            MenuEntry("Widgets") { widgets.showPicker() },
-            MenuEntry("Launcher settings") { startActivity(Intent(this, SettingsActivity::class.java)) },
+            MenuEntry(getString(R.string.widgets)) { widgets.showPicker() },
+            MenuEntry(getString(R.string.settings)) { startActivity(Intent(this, SettingsActivity::class.java)) },
         ))
     }
 
@@ -653,11 +653,11 @@ class HomeActivity : Activity() {
             addView(et)
         }
         AlertDialog.Builder(this, Themes.dialogTheme(pal))
-            .setTitle("Rename")
+            .setTitle(R.string.rename)
             .setView(box)
-            .setPositiveButton("Save") { _, _ -> onDone(et.text.toString().trim().ifEmpty { null }) }
-            .setNeutralButton("Reset") { _, _ -> onDone(null) }
-            .setNegativeButton("Cancel", null)
+            .setPositiveButton(R.string.save) { _, _ -> onDone(et.text.toString().trim().ifEmpty { null }) }
+            .setNeutralButton(R.string.reset) { _, _ -> onDone(null) }
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -697,38 +697,38 @@ class HomeActivity : Activity() {
                 Shortcuts.launch(this, si.`package`, si.id, key.user, null, null)
             })
         }
-        entries.add(MenuEntry("Edit icon") { editIcon("app:$key") })
-        entries.add(MenuEntry("Rename") { renameDialog(app.label) { setLabel("app:$key", it) } })
+        entries.add(MenuEntry(getString(R.string.edit_icon)) { editIcon("app:$key") })
+        entries.add(MenuEntry(getString(R.string.rename)) { renameDialog(app.label) { setLabel("app:$key", it) } })
         when {
-            inDrawer -> entries.add(MenuEntry("Add to home") {
+            inDrawer -> entries.add(MenuEntry(getString(R.string.add_to_home)) {
                 l.placeFirstFree(AppItem(l.newId(), key))
                 Store.save()
                 rebind()
-                Toast.makeText(this, "Added to home screen", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.added_to_home, Toast.LENGTH_SHORT).show()
             })
-            folder != null -> entries.add(MenuEntry("Remove from folder") {
+            folder != null -> entries.add(MenuEntry(getString(R.string.remove_from_folder)) {
                 folder.apps.remove(key)
                 l.fixFolders()
                 Store.save()
                 closeFolder()
                 rebind()
             })
-            item != null -> entries.add(MenuEntry("Remove from home") { removeItem(item) })
+            item != null -> entries.add(MenuEntry(getString(R.string.remove_from_home)) { removeItem(item) })
         }
-        entries.add(MenuEntry("Hide") {
+        entries.add(MenuEntry(getString(R.string.hide)) {
             l.hidden.add(key.toString())
             l.removeApp(key)
             Store.save()
             closeFolder()
             rebind()
         })
-        entries.add(MenuEntry("App info") {
+        entries.add(MenuEntry(getString(R.string.app_info)) {
             try {
                 Apps.la.startAppDetailsActivity(key.component, app.user, null, null)
             } catch (_: Exception) {
             }
         })
-        if (!app.isSystem) entries.add(MenuEntry("Uninstall") {
+        if (!app.isSystem) entries.add(MenuEntry(getString(R.string.uninstall)) {
             try {
                 startActivity(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", key.pkg, null)).putExtra(Intent.EXTRA_USER, app.user))
             } catch (_: Exception) {
@@ -746,30 +746,30 @@ class HomeActivity : Activity() {
             st.source == Src.FOLDER -> st.appKey?.let { appMenu(anchor, it, null, st.folder, false) }
             item is AppItem -> appMenu(anchor, item.key, item, null, false)
             item is ShortcutItem -> showMenu(anchor, listOf(
-                MenuEntry("Edit icon") { editIcon("item:${item.id}") },
-                MenuEntry("Rename") {
+                MenuEntry(getString(R.string.edit_icon)) { editIcon("item:${item.id}") },
+                MenuEntry(getString(R.string.rename)) {
                     renameDialog(Store.layout.icons["item:${item.id}"]?.label ?: item.label) { setLabel("item:${item.id}", it) }
                 },
-                MenuEntry("Remove") { removeItem(item) },
+                MenuEntry(getString(R.string.remove)) { removeItem(item) },
             ))
             item is FolderItem -> showMenu(anchor, listOf(
-                MenuEntry("Edit icon") { editIcon("item:${item.id}") },
-                MenuEntry("Rename") {
+                MenuEntry(getString(R.string.edit_icon)) { editIcon("item:${item.id}") },
+                MenuEntry(getString(R.string.rename)) {
                     renameDialog(item.name) {
-                        item.name = it ?: "Folder"
+                        item.name = it ?: getString(R.string.folder_default)
                         Store.save()
                         rebind()
                     }
                 },
-                MenuEntry("Remove") { removeItem(item) },
+                MenuEntry(getString(R.string.remove)) { removeItem(item) },
             ))
             item is WidgetItem -> showMenu(anchor, listOf(
-                MenuEntry("Resize") {
+                MenuEntry(getString(R.string.resize)) {
                     val page = Store.layout.pageOf(item)
                     workspace.pages.getOrNull(page)?.let { widgets.startResize(item, it) }
                 },
-                MenuEntry("Remove") { removeItem(item) },
-                MenuEntry("App info") {
+                MenuEntry(getString(R.string.remove)) { removeItem(item) },
+                MenuEntry(getString(R.string.app_info)) {
                     val p = item.provider
                     val u = Apps.user(item.user)
                     if (p != null && u != null) try {
@@ -1084,7 +1084,7 @@ class HomeActivity : Activity() {
             is FolderItem -> if (key !in target.apps) target.apps.add(key)
             is AppItem -> {
                 val list = l.containerOf(target) ?: return false
-                val f = FolderItem(l.newId(), "Folder", mutableListOf(target.key, key))
+                val f = FolderItem(l.newId(), getString(R.string.folder_default), mutableListOf(target.key, key))
                 f.x = target.x
                 f.y = target.y
                 list[list.indexOfFirst { it === target }] = f
@@ -1116,7 +1116,7 @@ class HomeActivity : Activity() {
             Src.SHORTCUT -> {
                 val si = st.shortcut ?: return false
                 if (!Shortcuts.pin(si)) {
-                    Toast.makeText(this, "Couldn't pin that shortcut", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, R.string.cant_pin_shortcut, Toast.LENGTH_SHORT).show()
                     return false
                 }
                 ShortcutItem(l.newId(), si.`package`, si.id, Apps.serial(si.userHandle), Shortcuts.label(si))

@@ -11,6 +11,8 @@ package io.github.nullangst.corkboard
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BlendMode
+import android.graphics.BlendModeColorFilter
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
@@ -23,11 +25,15 @@ import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.os.Process
 import android.os.UserHandle
 import android.util.DisplayMetrics
 import android.util.LruCache
 import java.io.File
+import java.security.MessageDigest
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
@@ -40,27 +46,30 @@ import kotlin.math.sin
 object IconRenderer {
     val shapes = listOf("system", "circle", "squircle", "rounded", "square", "teardrop")
 
-    fun shapeName(id: String) = when (id) {
-        "system" -> "System default"
-        "circle" -> "Circle"
-        "squircle" -> "Squircle"
-        "rounded" -> "Rounded square"
-        "square" -> "Square"
-        "teardrop" -> "Teardrop"
-        "none" -> "None"
-        "global" -> "Use global"
-        else -> id
-    }
+    fun shapeName(ctx: Context, id: String): String = ctx.getString(
+        when (id) {
+            "circle" -> R.string.shape_circle
+            "squircle" -> R.string.shape_squircle
+            "rounded" -> R.string.shape_rounded
+            "square" -> R.string.shape_square
+            "teardrop" -> R.string.shape_teardrop
+            "none" -> R.string.shape_none
+            "global" -> R.string.shape_global
+            else -> R.string.shape_system
+        },
+    )
 
     private val cache = object : LruCache<String, Bitmap>((Runtime.getRuntime().maxMemory() / 8).toInt()) {
         override fun sizeOf(key: String, value: Bitmap) = value.byteCount
     }
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
+    /** Memory only. The disk cache keys carry every setting, so stale files are just never asked for again. */
     fun clear() = cache.evictAll()
 
     fun clearPackage(pkg: String) {
         for (k in cache.snapshot().keys) if (k.contains(pkg)) cache.remove(k)
+        DiskIcons.clearPackage(pkg)
     }
 
     /** Home and drawer icon size in pixels for the current settings. */
@@ -126,11 +135,72 @@ object IconRenderer {
     fun app(ctx: Context, key: AppKey, size: Int = sizePx(ctx), override: IconSettings? = null): Bitmap? {
         val app = Apps.apps[key] ?: return null
         val s = override ?: Store.layout.icons["app:$key"]
-        val k = "a|$key|${app.version}|${s?.look()}|$size|${Store.layout.settings.shape}"
-        if (override == null) cache.get(k)?.let { return it }
-        val bmp = render(ctx, appSource(ctx, app), s, size, app.user)
-        if (override == null) cache.put(k, bmp)
+        val themed = themedColors(ctx)
+        val k = "a|$key|${app.version}|${s?.look()}|$size|${Store.layout.settings.shape}|${themed?.let { "${it.first}.${it.second}" }}"
+        if (override == null) {
+            cache.get(k)?.let { return it }
+            DiskIcons.get(ctx, k, key.pkg)?.let {
+                cache.put(k, it)
+                return it
+            }
+        }
+        val src = appSource(ctx, app)
+        val bmp = themed(ctx, src, s, size, app.user, themed) ?: render(ctx, src, s, size, app.user)
+        if (override == null) {
+            cache.put(k, bmp)
+            DiskIcons.put(ctx, k, key.pkg, bmp)
+        }
         return bmp
+    }
+
+    // ---- Themed (monochrome) icons ----
+
+    /** Themed icons can be turned on: Android 13+, where apps can ship a monochrome layer. */
+    val themedSupported: Boolean get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+    /**
+     * Background and foreground colors for themed icons, from the wallpaper like Pixel Launcher, or
+     * null when themed icons are off. If the system colors can't be read, the launcher theme's
+     * colors stand in.
+     */
+    fun themedColors(ctx: Context): Pair<Int, Int>? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || !Store.layout.settings.themedIcons) return null
+        val pal = Themes.palette(ctx)
+        return try {
+            val r = ctx.resources
+            if (pal.isDark) {
+                r.getColor(android.R.color.system_neutral1_800, null) to r.getColor(android.R.color.system_accent1_100, null)
+            } else {
+                r.getColor(android.R.color.system_accent1_100, null) to r.getColor(android.R.color.system_neutral2_700, null)
+            }
+        } catch (_: Throwable) {
+            if (pal.isDark) pal.surface to pal.accent else pal.accent to pal.onAccent
+        }
+    }
+
+    /**
+     * Draws the app's monochrome layer tinted on a wallpaper-colored shape. Returns null, so the
+     * normal icon is drawn instead, whenever anything is off: themed icons disabled, a custom image
+     * set, no monochrome layer, a layer that draws nothing, or any throw at all.
+     */
+    private fun themed(ctx: Context, src: Drawable?, s: IconSettings?, size: Int, user: UserHandle?, colors: Pair<Int, Int>?): Bitmap? {
+        if (colors == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || s?.source == "custom") return null
+        return try {
+            val mono = (src as? AdaptiveIconDrawable)?.monochrome?.mutate() ?: return null
+            mono.colorFilter = BlendModeColorFilter(colors.second, BlendMode.SRC_IN)
+            val layer = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            drawLayer(Canvas(layer), mono, (size * 0.25f).roundToInt(), size, (s?.scale ?: 100) / 100f)
+            if (pixels(layer).none { it ushr 24 > 16 }) return null
+            val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val c = Canvas(out)
+            val shape = if (s == null || s.shape == "global") Store.layout.settings.shape else s.shape
+            shapePath(shape, size)?.let { c.clipPath(it) }
+            c.drawColor(colors.first)
+            c.drawBitmap(layer, 0f, 0f, paint)
+            badge(ctx, out, user)
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     fun shortcut(ctx: Context, item: ShortcutItem, size: Int = sizePx(ctx), override: IconSettings? = null): Bitmap {
@@ -357,5 +427,110 @@ object IconRenderer {
         val f = File(Store.iconsDir, name)
         f.outputStream().use { scaled.compress(Bitmap.CompressFormat.PNG, 100, it) }
         return "icons/$name"
+    }
+}
+
+/**
+ * Rendered app icons as PNGs in the app's cache directory, so a cold start skips pulling every icon
+ * out of its APK. Used by the home screen, dock, folders and drawer alike. Size is set in settings;
+ * the oldest files go first when it is over. Android may clear this folder when storage is low, and
+ * the only cost is one slower start.
+ */
+object DiskIcons {
+    private val io = Executors.newSingleThreadExecutor()
+    private val trimQueued = AtomicBoolean(false)
+    @Volatile private var dir: File? = null
+
+    private fun dir(ctx: Context): File =
+        dir ?: File(ctx.applicationContext.cacheDir, "icons").also {
+            it.mkdirs()
+            dir = it
+        }
+
+    private fun capBytes(): Long = Store.layout.settings.diskCacheMb * 1024L * 1024L
+
+    private fun hash(key: String): String =
+        MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    private fun file(ctx: Context, key: String, pkg: String) = File(dir(ctx), "$pkg-${hash(key)}.png")
+
+    fun get(ctx: Context, key: String, pkg: String): Bitmap? {
+        if (capBytes() <= 0) return null
+        return try {
+            val f = file(ctx, key, pkg)
+            if (!f.exists()) return null
+            val b = BitmapFactory.decodeFile(f.path)
+            if (b == null) {
+                f.delete()
+                return null
+            }
+            io.execute { f.setLastModified(System.currentTimeMillis()) }
+            b
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    fun put(ctx: Context, key: String, pkg: String, bmp: Bitmap) {
+        if (capBytes() <= 0) return
+        val f = try {
+            file(ctx, key, pkg)
+        } catch (_: Throwable) {
+            return
+        }
+        io.execute {
+            try {
+                val tmp = File(f.path + ".tmp")
+                tmp.outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                if (!tmp.renameTo(f)) tmp.delete()
+            } catch (_: Throwable) {
+            }
+        }
+        trimSoon()
+    }
+
+    /** Deletes the oldest files until the folder is under 90% of the cap. */
+    fun trimSoon() {
+        if (!trimQueued.compareAndSet(false, true)) return
+        io.execute {
+            trimQueued.set(false)
+            try {
+                val files = dir?.listFiles() ?: return@execute
+                val cap = capBytes()
+                var total = files.sumOf { it.length() }
+                if (total <= cap) return@execute
+                for (f in files.sortedBy { it.lastModified() }) {
+                    if (total <= cap * 0.9) break
+                    total -= f.length()
+                    f.delete()
+                }
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    fun clearPackage(pkg: String) {
+        io.execute {
+            try {
+                dir?.listFiles()?.forEach { if (it.name.startsWith("$pkg-")) it.delete() }
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    fun clearAll(ctx: Context) {
+        val d = dir(ctx)
+        io.execute {
+            try {
+                d.listFiles()?.forEach { it.delete() }
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    fun usedBytes(ctx: Context): Long = try {
+        dir(ctx).listFiles()?.sumOf { it.length() } ?: 0L
+    } catch (_: Throwable) {
+        0L
     }
 }

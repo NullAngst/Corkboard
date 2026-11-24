@@ -28,7 +28,15 @@ Swipe down for notifications calls a hidden API, `StatusBarManager.expandNotific
 3. Read the new Android version's behavior changes and its non-SDK interface restrictions list for anything touching `StatusBarManager`.
 4. If it broke, see how other open-source launchers such as Lawnchair handle it now and port the fix. If nobody has one, set `swipeDown` to off by default in `Settings` in `LayoutStore.kt` and note it in `changes.md`.
 
-## 4. Install a fresh build and use it for a day
+## 3.5. Themed icons check
+
+Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochrome()`) and the wallpaper colors (`android.R.color.system_accent1_100`, `system_neutral1_800`, `system_neutral2_700`). Both are public framework API, and every failure falls back to the normal icon, so a break shows up as icons quietly not theming rather than a crash.
+
+1. With Themed icons on, check a few apps known to ship monochrome icons (Google apps, most Pixel apps). They should be tinted.
+2. Change the wallpaper. Icons should re-tint after the home screen comes back.
+3. Read the new Android version's notes for changes to themed icons. Pixel Launcher has started forcing a themed look onto apps with no monochrome layer; if that becomes a framework API, consider using it.
+
+
 
 1. Make a release (see "Making a release" in README.md), or install the debug APK from the check job.
 2. Export a layout backup first, from Launcher settings.
@@ -42,8 +50,14 @@ Swipe down for notifications calls a hidden API, `StatusBarManager.expandNotific
    - Long-press an app: its app shortcuts show at the top of the menu.
    - If you have a work profile: Work tab, pause and resume work apps, greyed icons while paused.
    - Edit icon on an old square icon: Auto fills the shape.
+   - Reboot the phone and time the first home screen draw. Then set Icon cache size to Off, reboot, and compare. If the cache isn't making a difference, find out why before the next release.
+   - Switch the phone's language to Spanish and German and skim Launcher settings and the long-press menus for text that overflows or reads wrong.
    - Change theme and icon shape from settings.
    - Import the backup you exported in step 2.
+
+## 4.5. Translations
+
+When a string is added or changed in `values/strings.xml`, add or change it in `values-es/strings.xml` and `values-de/strings.xml` too. Lint fails the build otherwise. If a native speaker sends corrections, apply them and note it in `changes.md`.
 
 ## 5. Write it down
 

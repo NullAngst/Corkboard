@@ -74,7 +74,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         isClickable = true
 
         search.apply {
-            hint = "Search apps"
+            hint = context.getString(R.string.search_apps)
             isSingleLine = true
             imeOptions = EditorInfo.IME_ACTION_GO
             setOnEditorActionListener { _, _, _ ->
@@ -99,8 +99,8 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
             t.setPadding(pad, pad, pad, pad)
             tabs.addView(t, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
-        tabPersonal.text = "Personal"
-        tabWork.text = "Work"
+        tabPersonal.text = context.getString(R.string.tab_personal)
+        tabWork.text = context.getString(R.string.tab_work)
         tabPersonal.setOnClickListener { setTab(false) }
         tabWork.setOnClickListener { setTab(true) }
         addView(tabs, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -162,7 +162,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         val wu = Apps.workUser()
         val canPause = work && wu != null && Shortcuts.available()
         pause.visibility = if (canPause) VISIBLE else GONE
-        if (wu != null) pause.text = if (Apps.isQuiet(Apps.serial(wu))) "Turn on work apps" else "Pause work apps"
+        if (wu != null) pause.text = context.getString(if (Apps.isQuiet(Apps.serial(wu))) R.string.work_resume else R.string.work_pause)
         pause.setTextColor(pal.accent)
         filter()
     }

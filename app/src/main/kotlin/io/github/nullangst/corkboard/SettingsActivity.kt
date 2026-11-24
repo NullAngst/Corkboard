@@ -161,8 +161,12 @@ class SettingsActivity : Activity() {
         build()
     }
 
+    /** Global look changes re-render everything, so the old disk icons are dead weight: drop them too. */
     private fun changed(clearIcons: Boolean = false) {
-        if (clearIcons) IconRenderer.clear()
+        if (clearIcons) {
+            IconRenderer.clear()
+            DiskIcons.clearAll(this)
+        }
         Store.save()
     }
 
@@ -200,7 +204,7 @@ class SettingsActivity : Activity() {
                 dlg.dismiss()
                 onPick(which)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -209,7 +213,7 @@ class SettingsActivity : Activity() {
             .setTitle(title)
             .setMessage(msg)
             .setPositiveButton(yes) { _, _ -> onYes() }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
@@ -220,47 +224,48 @@ class SettingsActivity : Activity() {
         list.removeAllViews()
         val s = Store.layout.settings
         val add = { v: View -> list.addView(v, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)) }
+        val str = { id: Int -> getString(id) }
 
-        add(Ui.title(this, pal, "Launcher settings"))
+        add(Ui.title(this, pal, str(R.string.settings)))
 
         if (!isDefaultHome(this)) {
-            add(Ui.header(this, pal, "Default home"))
-            add(Ui.row(this, pal, "Set as default home app", "App shortcuts, pinned shortcuts and pausing work apps need this") {
+            add(Ui.header(this, pal, str(R.string.s_default_home)))
+            add(Ui.row(this, pal, str(R.string.s_set_default), str(R.string.s_set_default_sub)) {
                 requestHomeRole(this)
             })
         }
 
-        add(Ui.header(this, pal, "Layout"))
-        add(stepper("Columns", s.columns, 3, 6) {
+        add(Ui.header(this, pal, str(R.string.s_layout)))
+        add(stepper(str(R.string.s_columns), s.columns, 3, 6) {
             s.columns = it
             Store.layout.refit()
             changed(true)
             build()
         })
-        add(stepper("Rows", s.rows, 4, 8) {
+        add(stepper(str(R.string.s_rows), s.rows, 4, 8) {
             s.rows = it
             Store.layout.refit()
             changed()
             build()
         })
-        add(Ui.switchRow(this, pal, "Lock layout", s.locked, "No dragging") {
+        add(Ui.switchRow(this, pal, str(R.string.s_lock), s.locked, str(R.string.s_lock_sub)) {
             s.locked = it
             changed()
         })
-        add(Ui.switchRow(this, pal, "Add new apps to home screen", s.autoAdd) {
+        add(Ui.switchRow(this, pal, str(R.string.s_auto_add), s.autoAdd) {
             s.autoAdd = it
             changed()
         })
 
-        add(Ui.header(this, pal, "Drawer"))
-        add(Ui.switchRow(this, pal, "Open keyboard with drawer", s.drawerKeyboard) {
+        add(Ui.header(this, pal, str(R.string.s_drawer)))
+        add(Ui.switchRow(this, pal, str(R.string.s_drawer_keyboard), s.drawerKeyboard) {
             s.drawerKeyboard = it
             changed()
         })
 
-        add(Ui.header(this, pal, "Icons"))
-        add(Ui.row(this, pal, "Shape", IconRenderer.shapeName(s.shape)) {
-            choose("Icon shape", IconRenderer.shapes.map { IconRenderer.shapeName(it) }, IconRenderer.shapes.indexOf(s.shape)) {
+        add(Ui.header(this, pal, str(R.string.s_icons)))
+        add(Ui.row(this, pal, str(R.string.s_shape), IconRenderer.shapeName(this, s.shape)) {
+            choose(str(R.string.s_icon_shape), IconRenderer.shapes.map { IconRenderer.shapeName(this, it) }, IconRenderer.shapes.indexOf(s.shape)) {
                 s.shape = IconRenderer.shapes[it]
                 changed(true)
                 build()
@@ -268,7 +273,7 @@ class SettingsActivity : Activity() {
         })
         val sizeLabel = TextView(this).apply {
             setTextColor(pal.text)
-            text = "Size: ${s.iconSize}%"
+            text = getString(R.string.s_size, s.iconSize)
             textSize = 16f
             setPadding(Ui.dp(context, 20f), Ui.dp(context, 8f), Ui.dp(context, 20f), 0)
         }
@@ -280,7 +285,7 @@ class SettingsActivity : Activity() {
             setPadding(Ui.dp(context, 24f), Ui.dp(context, 8f), Ui.dp(context, 24f), Ui.dp(context, 8f))
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
-                    sizeLabel.text = "Size: ${80 + p * 5}%"
+                    sizeLabel.text = getString(R.string.s_size, 80 + p * 5)
                 }
 
                 override fun onStartTrackingTouch(sb: SeekBar?) {}
@@ -290,12 +295,36 @@ class SettingsActivity : Activity() {
                 }
             })
         })
-        add(Ui.switchRow(this, pal, "Show labels", s.labels) {
+        add(Ui.switchRow(this, pal, str(R.string.s_labels), s.labels) {
             s.labels = it
             changed()
         })
-        add(Ui.row(this, pal, "Reset all custom icons", "Shapes, images, scale and backgrounds. Renamed labels stay") {
-            confirm("Reset all custom icons?", "Every icon goes back to its default look.", "Reset") {
+        add(Ui.switchRow(
+            this, pal, str(R.string.s_themed), s.themedIcons && IconRenderer.themedSupported,
+            str(if (IconRenderer.themedSupported) R.string.s_themed_sub else R.string.s_themed_unsupported),
+            IconRenderer.themedSupported,
+        ) {
+            s.themedIcons = it
+            changed(true)
+        })
+        add(Ui.row(this, pal, str(R.string.s_cache_size), cacheSummary()) {
+            val sizes = listOf(0, 10, 25, 50, 100, 200, 500)
+            val names = sizes.map { if (it == 0) str(R.string.s_cache_off) else getString(R.string.s_cache_mb, it) }
+            choose(str(R.string.s_cache_size), names, sizes.indexOf(s.diskCacheMb)) {
+                s.diskCacheMb = sizes[it]
+                changed()
+                if (s.diskCacheMb == 0) DiskIcons.clearAll(this) else DiskIcons.trimSoon()
+                build()
+            }
+        })
+        add(Ui.row(this, pal, str(R.string.s_cache_clear), str(R.string.s_cache_clear_sub)) {
+            DiskIcons.clearAll(this)
+            IconRenderer.clear()
+            Toast.makeText(this, R.string.s_cache_cleared, Toast.LENGTH_SHORT).show()
+            scroll.postDelayed({ build() }, 300)
+        })
+        add(Ui.row(this, pal, str(R.string.s_reset_icons), str(R.string.s_reset_icons_sub)) {
+            confirm(str(R.string.s_reset_icons_title), str(R.string.s_reset_icons_msg), str(R.string.reset)) {
                 val icons = Store.layout.icons
                 for (k in icons.keys.toList()) {
                     val label = icons[k]?.label
@@ -306,15 +335,16 @@ class SettingsActivity : Activity() {
             }
         })
 
-        add(Ui.header(this, pal, "Apps"))
+        add(Ui.header(this, pal, str(R.string.s_apps)))
         val hidden = Store.layout.hidden.toList()
-        if (hidden.isEmpty()) add(Ui.row(this, pal, "Hidden apps", "None", null))
+        if (hidden.isEmpty()) add(Ui.row(this, pal, str(R.string.s_hidden_apps), str(R.string.s_none), null))
         for (h in hidden) {
             val key = AppKey.parse(h)
             val app = key?.let { Apps.apps[it] }
-            val name = (app?.label ?: key?.pkg ?: h) + if (key != null && Apps.isWork(key.user)) " (Work)" else ""
-            add(Ui.row(this, pal, name, "Hidden", null).apply {
-                addView(Ui.button(context, pal, "Unhide") {
+            val base = app?.label ?: key?.pkg ?: h
+            val name = if (key != null && Apps.isWork(key.user)) getString(R.string.work_suffix, base) else base
+            add(Ui.row(this, pal, name, str(R.string.s_hidden), null).apply {
+                addView(Ui.button(context, pal, str(R.string.s_unhide)) {
                     Store.layout.hidden.remove(h)
                     changed()
                     build()
@@ -322,48 +352,48 @@ class SettingsActivity : Activity() {
             })
         }
 
-        add(Ui.header(this, pal, "Look"))
-        add(Ui.row(this, pal, "Theme", Themes.name(s.theme)) {
-            choose("Theme", Themes.ids.map { Themes.name(it) }, Themes.ids.indexOf(s.theme)) {
+        add(Ui.header(this, pal, str(R.string.s_look)))
+        add(Ui.row(this, pal, str(R.string.s_theme), Themes.name(this, s.theme)) {
+            choose(str(R.string.s_theme), Themes.ids.map { Themes.name(this, it) }, Themes.ids.indexOf(s.theme)) {
                 s.theme = Themes.ids[it]
                 changed(true)
                 build()
             }
         })
 
-        add(Ui.header(this, pal, "Gestures"))
+        add(Ui.header(this, pal, str(R.string.s_gestures)))
         add(Ui.switchRow(
-            this, pal, "Swipe down for notifications", s.swipeDown && Shade.available,
-            if (Shade.available) "Swipe down anywhere on the home screen" else "Not supported on this Android version",
+            this, pal, str(R.string.s_swipe_down), s.swipeDown && Shade.available,
+            str(if (Shade.available) R.string.s_swipe_down_sub else R.string.s_unsupported),
             Shade.available,
         ) {
             s.swipeDown = it
             changed()
         })
 
-        add(Ui.header(this, pal, "Backup"))
-        add(Ui.row(this, pal, "Export layout", "Layout and custom icons to one file") {
+        add(Ui.header(this, pal, str(R.string.s_backup)))
+        add(Ui.row(this, pal, str(R.string.s_export), str(R.string.s_export_sub)) {
             val name = "corkboard-backup-" + SimpleDateFormat("yyyyMMdd", Locale.US).format(Date()) + ".zip"
             val i = Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("application/zip")
                 .putExtra(Intent.EXTRA_TITLE, name)
             startActivityForResult(i, reqExport)
         })
-        add(Ui.row(this, pal, "Import layout", "Replaces the current layout") {
-            confirm("Import a layout?", "This replaces your current home screen and custom icons. Widgets ask to be set up again.", "Choose file") {
+        add(Ui.row(this, pal, str(R.string.s_import), str(R.string.s_import_sub)) {
+            confirm(str(R.string.s_import_title), str(R.string.s_import_msg), str(R.string.s_choose_file)) {
                 val i = Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
                     .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
                 startActivityForResult(i, reqImport)
             }
         })
 
-        add(Ui.header(this, pal, "About"))
+        add(Ui.header(this, pal, str(R.string.s_about)))
         val version = try {
             packageManager.getPackageInfo(packageName, 0).versionName
         } catch (_: Exception) {
             null
         } ?: "?"
-        add(Ui.row(this, pal, "Corkboard $version", "GPL-3.0. Built on ideas and code from Lawnchair and AOSP Launcher3", null))
-        add(Ui.row(this, pal, "Source code", "github.com/NullAngst/Corkboard") {
+        add(Ui.row(this, pal, getString(R.string.s_version, version), str(R.string.s_about_sub), null))
+        add(Ui.row(this, pal, str(R.string.s_source), "github.com/NullAngst/Corkboard") {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/NullAngst/Corkboard")))
             } catch (_: Exception) {
@@ -372,15 +402,22 @@ class SettingsActivity : Activity() {
         list.addView(View(this), LinearLayout.LayoutParams(1, Ui.dp(this, 24f)))
     }
 
+    private fun cacheSummary(): String {
+        val mb = Store.layout.settings.diskCacheMb
+        if (mb == 0) return getString(R.string.s_cache_sub_off)
+        val used = getString(R.string.s_cache_mb_used, DiskIcons.usedBytes(this) / (1024.0 * 1024.0))
+        return getString(R.string.s_cache_sub, getString(R.string.s_cache_mb, mb), used)
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         val uri = data?.data
         if (resultCode != RESULT_OK || uri == null) return
         when (requestCode) {
             reqExport -> try {
                 contentResolver.openOutputStream(uri)?.use { Store.exportZip(it) }
-                Toast.makeText(this, "Layout exported", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.s_exported, Toast.LENGTH_SHORT).show()
             } catch (_: Exception) {
-                Toast.makeText(this, "Couldn't write the backup", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, R.string.s_export_failed, Toast.LENGTH_LONG).show()
             }
             reqImport -> try {
                 val restored = contentResolver.openInputStream(uri)?.use { Store.importZip(it) } ?: throw IllegalStateException()
@@ -397,12 +434,13 @@ class SettingsActivity : Activity() {
                 restored.seen.addAll(Apps.apps.keys.map { it.toString() })
                 Apps.reconcile()
                 IconRenderer.clear()
+                DiskIcons.clearAll(this)
                 Store.save()
                 Store.cleanIcons()
-                Toast.makeText(this, "Layout restored", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.s_restored, Toast.LENGTH_SHORT).show()
                 build()
             } catch (_: Exception) {
-                Toast.makeText(this, "That file isn't a Corkboard backup", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, R.string.s_not_backup, Toast.LENGTH_LONG).show()
             }
         }
     }
