@@ -949,8 +949,9 @@ class HomeActivity : Activity() {
             if (!st.moved) return
             closeFolder()
         }
+        // Lifting an app in the drawer and moving it drops you on the home screen to place it.
         if (drawer.isOpen) {
-            if (st.source == Src.DRAWER && st.startY - y > 48 * d) drawer.close() else return
+            if (st.source == Src.DRAWER && st.moved) drawer.close() else return
         }
         if (!st.moved) return
 
