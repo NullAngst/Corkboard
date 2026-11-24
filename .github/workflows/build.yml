@@ -27,6 +27,14 @@ jobs:
       - name: Build debug APK and run lint
         run: bash ./gradlew --no-daemon --stacktrace assembleDebug lintDebug
 
+      - name: Show lint report
+        if: failure()
+        run: |
+          for f in app/build/reports/lint-results-debug.txt app/build/intermediates/lint_intermediate_text_report/debug/*/lint-results-debug.txt; do
+            [ -f "$f" ] && cat "$f" && exit 0
+          done
+          find app/build -name 'lint-results*' -print
+
   # Run workflow from the Actions tab, picking a tag under "Use workflow from".
   release:
     if: github.event_name == 'workflow_dispatch'

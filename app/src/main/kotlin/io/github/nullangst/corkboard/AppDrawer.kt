@@ -203,7 +203,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         if (Store.layout.settings.drawerKeyboard) {
             search.requestFocus()
             search.postDelayed({
-                act.getSystemService(InputMethodManager::class.java)?.showSoftInput(search, InputMethodManager.SHOW_IMPLICIT)
+                act.getSystemService(InputMethodManager::class.java)?.showSoftInput(search, 0)
             }, 120)
         }
     }

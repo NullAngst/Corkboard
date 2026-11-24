@@ -28,6 +28,7 @@ import android.provider.Settings
 import android.view.DragEvent
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
@@ -257,9 +258,13 @@ class HomeActivity : Activity() {
         if (alreadyOnHome) workspace.snapTo(0)
     }
 
-    @Deprecated("Android 13+ uses OnBackInvokedCallback; this covers Android 10 to 12.")
-    override fun onBackPressed() {
-        handleBack()
+    /** Android 10 to 12: back arrives as a key. Android 13+ uses the OnBackInvokedCallback below. */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU && event.keyCode == KeyEvent.KEYCODE_BACK) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) handleBack()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -271,7 +276,9 @@ class HomeActivity : Activity() {
     }
 
     private fun edgeToEdge() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) return // edge-to-edge is enforced
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            @Suppress("DEPRECATION")
             window.setDecorFitsSystemWindows(false)
         } else {
             @Suppress("DEPRECATION")

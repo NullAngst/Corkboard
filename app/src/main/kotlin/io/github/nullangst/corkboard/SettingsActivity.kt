@@ -36,7 +36,8 @@ object Ui {
     fun edgeToEdge(act: Activity, root: View, pal: Palette) {
         act.window.decorView.setBackgroundColor(pal.bg)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            act.window.setDecorFitsSystemWindows(false)
+            @Suppress("DEPRECATION")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) act.window.setDecorFitsSystemWindows(false)
             act.window.insetsController?.setSystemBarsAppearance(
                 if (pal.isDark) 0 else android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS or
                     android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,

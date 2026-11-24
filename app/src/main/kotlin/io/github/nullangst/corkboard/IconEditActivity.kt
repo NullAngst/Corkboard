@@ -289,10 +289,9 @@ class IconEditActivity : Activity() {
         finish()
     }
 
-    @Deprecated("Android 13+ predictive back still reaches finish(); this covers older versions.")
-    override fun onBackPressed() {
-        dropPicked()
-        @Suppress("DEPRECATION")
-        super.onBackPressed()
+    override fun onDestroy() {
+        super.onDestroy()
+        // Leaving by back or swipe without saving: drop the unsaved picked image.
+        if (isFinishing) dropPicked()
     }
 }

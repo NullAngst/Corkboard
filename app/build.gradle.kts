@@ -60,7 +60,5 @@ android {
 
     lint {
         abortOnError = true
-        textReport = true
-        textOutput = file("stdout")
     }
 }
