@@ -19,6 +19,9 @@ Install an app and it shows up on the home screen and in the app drawer. Drag it
 - Widgets from installed apps, placed and resized on the grid. Corkboard ships no widgets of its own.
 - Pinned shortcuts ("Add to home screen" from Chrome) and app shortcuts in the long-press menu.
 - Icon shapes: system default, circle, squircle, rounded square, square, teardrop. Per item: shape, custom image, scale, Fill or Fit treatment, background color.
+- Themed icons (Android 13+): each app's monochrome icon tinted to your wallpaper colors, like Pixel Launcher. Off by default.
+- Disk icon cache so cold starts skip re-reading every icon. 25 MB by default, adjustable in settings.
+- English, Spanish and German.
 - Old square icons that Android parks inside a white circle get scaled up to fill the shape instead.
 - Work profile: badged icons, Work tab, pause work apps.
 - Hide apps, rename labels, lock the layout.
@@ -26,7 +29,7 @@ Install an app and it shows up on the home screen and in the app drawer. Drag it
 - Backup and restore of the layout and custom icons to one zip file.
 - Swipe down anywhere on the home screen for the notification shade.
 
-Not in v1, on purpose: a Google feed page, notification dots, icon packs, themed (monochrome) icons, Private space, double-tap to lock.
+Left out on purpose: a Google feed page, notification dots, icon packs, Private space, double-tap to lock.
 
 ## Installing
 
@@ -45,9 +48,27 @@ On first start the home screen is empty and every app is in the drawer. Everythi
 - **Long-press empty space** for Wallpaper, Widgets and Launcher settings.
 - **Home button** while on the home screen closes whatever is open and jumps to page 1.
 
+### Themed icons
+
+Turn on **Themed icons** in Launcher settings (Android 13 or newer). Apps that ship a monochrome icon get drawn as that icon, tinted with your wallpaper's colors, inside your chosen shape. Light and dark swap with the launcher theme.
+
+Apps without a monochrome icon keep their normal icon. So does any app you gave a custom image. If anything goes wrong reading an app's monochrome layer (none there, it draws nothing, or Android throws), that app quietly falls back to its normal icon. If the wallpaper colors can't be read, the launcher theme's colors are used instead.
+
+### Icon cache
+
+Rendered app icons are saved as PNGs in Corkboard's cache folder, so a cold start loads small files instead of pulling every icon out of every APK. It covers the home screen, dock, folders and drawer.
+
+The default is 25 MB, which holds several hundred icons. Change it under Launcher settings, Icons, **Icon cache size**: Off, 10, 25, 50, 100, 200 or 500 MB. When it fills up, the least recently used icons go first. **Clear icon cache** empties it; it refills on its own. Android may also clear it when storage runs low, and the only cost is one slower start. The cache is not part of the layout backup.
+
 ### Fixing an ugly legacy icon
 
 Long-press the app, pick **Edit icon**. Treatment **Auto** already fills full-bleed square icons into the shape. If it still looks off, try **Fill** or **Fit**, nudge **Scale**, or set a **Background** color for Fit. The preview updates live.
+
+## Translations
+
+Corkboard follows the phone's language. English, Spanish (`values-es`) and German (`values-de`) are included. The Spanish and German text was drafted by machine translation and has not been checked by a native speaker yet; corrections are welcome. Every string lives in `app/src/main/res/values*/strings.xml`. Theme names Verdigris and Kawaii are kept as names in every language.
+
+Lint fails the build if a string is missing from any language, so a new string has to be added to all three files.
 
 ## Things to know
 
