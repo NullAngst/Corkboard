@@ -68,11 +68,13 @@ adb shell cmd package query-activities --brief -a android.intent.action.MAIN -c 
 python3 - "$out/activities.txt" > /tmp/layout.json <<'PY'
 import sys, re, json
 comps = {}
+allc = []
 for line in open(sys.argv[1]):
     m = re.match(r'^\s*([\w.]+)/([\w.$]+)\s*$', line)
     if m:
         pkg, cls = m.groups()
         comps.setdefault(pkg, f"{pkg}/{cls}")
+        allc.append(f"{pkg}/{cls}")
 def c(pkg): return comps.get(pkg)
 nid = [0]
 def app(pkg, x, y):
@@ -88,10 +90,10 @@ page = [a for a in [
 folder_apps = [{"component": c(p), "user": 0} for p in ["com.google.android.apps.docs", "com.google.android.gm",
                "com.google.android.apps.photos", "com.google.android.apps.maps"] if c(p)]
 nid[0] += 1
-page.append({"id": nid[0], "type": "folder", "x": 3, "y": 4, "w": 1, "h": 1, "name": "Google", "apps": folder_apps})
+page.append({"id": nid[0], "type": "folder", "x": 3, "y": 4, "w": 1, "h": 1, "name": "Google apps", "apps": folder_apps})
 dock = [a for a in [app("com.google.android.dialer", 0, 0), app("com.google.android.apps.messaging", 1, 0),
                     app("com.android.chrome", 2, 0), app("com.android.camera2", 3, 0) or app("com.google.android.GoogleCamera", 3, 0)] if a]
-seen = [f"{v}#0" for v in comps.values()]
+seen = [f"{v}#0" for v in allc]
 print(json.dumps({"version": 1, "nextId": nid[0] + 10, "settings": {"shape": "system"}, "pages": [page], "dock": dock, "seen": seen, "hidden": [], "icons": {}}))
 PY
 cp /tmp/layout.json "$out/seeded-layout.json"
@@ -117,7 +119,7 @@ adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.x
 read -r fx fy < <(python3 - "$out/readme/home.xml" <<'PY'
 import sys, re, xml.etree.ElementTree as ET
 for n in ET.parse(sys.argv[1]).iter('node'):
-    if n.attrib.get('content-desc') == 'Google':
+    if n.attrib.get('content-desc') == 'Google apps':
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', n.attrib['bounds'])); print((x1+x2)//2, (y1+y2)//2); break
 PY
 )

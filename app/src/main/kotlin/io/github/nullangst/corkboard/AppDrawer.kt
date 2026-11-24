@@ -134,7 +134,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
 
     fun applyTheme() {
         val pal = act.pal
-        setBackgroundColor((pal.bg and 0x00FFFFFF) or (0xF2 shl 24))
+        setBackgroundColor(pal.bg or (0xFF shl 24))
         search.setTextColor(pal.text)
         search.setHintTextColor(pal.textDim)
         search.background = pal.card(act, pal.surface, 24f)
