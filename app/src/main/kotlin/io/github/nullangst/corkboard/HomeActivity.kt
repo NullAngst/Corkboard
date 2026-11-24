@@ -1255,6 +1255,7 @@ class HomeActivity : Activity() {
         private var downOnWidget = false
         private val slop = ViewConfiguration.get(context).scaledTouchSlop
         private val longPress = Runnable {
+            android.util.Log.d("CorkTouch", "longPress fired")
             mode = -1
             emptySpaceMenu(downX, downY)
         }
@@ -1335,10 +1336,20 @@ class HomeActivity : Activity() {
             return mode > 0
         }
 
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = track(ev)
+        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+            if (ev.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CorkTouch", "intercept ${ev.actionMasked} mode=$mode blocked=${blocked()} drag=${drag != null} overlay=${overlay != null} folder=${folderPanel != null} drawerVis=${drawer.visibility}")
+            return track(ev)
+        }
+
+        override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+            val r = super.dispatchTouchEvent(ev)
+            if (ev.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CorkTouch", "dispatch ${ev.actionMasked} -> $r")
+            return r
+        }
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(ev: MotionEvent): Boolean {
+            android.util.Log.d("CorkTouch", "touch ${ev.actionMasked} mode=$mode blocked=${blocked()}")
             if (blocked()) return super.onTouchEvent(ev)
             track(ev)
             return true

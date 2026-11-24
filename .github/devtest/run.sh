@@ -37,4 +37,5 @@ adb shell input swipe "$cx" "$cy" "$cx" "$cy" 1500
 shot 08-longpress-again
 adb shell dumpsys window windows | grep -E "Window #|mCurrentFocus|mFocusedApp" > "$out/windows.txt" 2>&1
 adb logcat -d > "$out/logcat.txt"
+adb logcat -d -s CorkTouch AndroidRuntime > "$out/cork.txt"
 adb logcat -d -b crash > "$out/crash.txt"
