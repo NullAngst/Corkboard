@@ -1313,7 +1313,6 @@ class HomeActivity : Activity() {
                             Shade.available && Store.layout.settings.swipeDown -> 3
                             else -> -1
                         }
-                        android.util.Log.d("CorkTouch", "mode=$mode dx=$dx dy=$dy")
                         if (mode == 1) workspace.beginDrag()
                         if (mode == 2) drawer.beginOpen()
                     }
@@ -1333,7 +1332,11 @@ class HomeActivity : Activity() {
                     val vy = vt?.yVelocity ?: 0f
                     when (mode) {
                         1 -> workspace.release(vx)
-                        2 -> drawer.releaseOpen(vy)
+                        2 -> {
+                            // A busy frame can swallow the last moves; the lift-off point is the truth.
+                            drawer.trackOpen(downY - ev.y)
+                            drawer.releaseOpen(vy)
+                        }
                         3 -> if (vy > 600 * d) Shade.expand(this@HomeActivity)
                     }
                     val m = mode

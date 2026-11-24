@@ -176,7 +176,6 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     // ---- Open and close ----
 
     fun beginOpen() {
-        android.util.Log.d("CorkTouch", "beginOpen h=$height")
         if (visibility != VISIBLE) {
             search.setText("")
             work = false
@@ -192,13 +191,14 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         translationY = (h - dist).coerceIn(0f, h)
     }
 
+    /** Opens on an upward fling, or on any swipe past a fifth of the screen that isn't flung back down. */
     fun releaseOpen(vy: Float) {
-        android.util.Log.d("CorkTouch", "releaseOpen vy=$vy ty=$translationY h=$height vis=$visibility")
-        if (vy < -fling || translationY < height * 0.7f) open() else close()
+        val h = height.toFloat().takeIf { it > 0 } ?: resources.displayMetrics.heightPixels.toFloat()
+        val dist = h - translationY
+        if (vy < -fling / 2 || (vy < fling && dist > h * 0.2f)) open() else close()
     }
 
     fun open() {
-        android.util.Log.d("CorkTouch", "open", Throwable())
         if (visibility != VISIBLE) beginOpen()
         isOpen = true
         animate().translationY(0f).setDuration(220).start()
@@ -212,7 +212,6 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     }
 
     fun close(animate: Boolean = true) {
-        android.util.Log.d("CorkTouch", "close animate=$animate", Throwable())
         isOpen = false
         act.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(windowToken, 0)
         search.clearFocus()
