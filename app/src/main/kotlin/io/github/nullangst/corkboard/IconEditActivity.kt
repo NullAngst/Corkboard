@@ -95,7 +95,7 @@ class IconEditActivity : Activity() {
         val add = { v: View -> list.addView(v, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)) }
         val isFolder = (Store.layout.findItem(target.removePrefix("item:").toLongOrNull() ?: -1)) is FolderItem
 
-        add(Ui.title(this, pal, "Edit icon"))
+        add(Ui.title(this, pal, getString(R.string.edit_icon)))
         preview = ImageView(this)
         val size = Ui.dp(this, 128f)
         list.addView(preview, LinearLayout.LayoutParams(size, size).apply {
@@ -103,8 +103,16 @@ class IconEditActivity : Activity() {
             bottomMargin = Ui.dp(this@IconEditActivity, 8f)
         })
         updatePreview()
+        if (target.startsWith("app:") && IconRenderer.themedColors(this) != null) {
+            add(TextView(this).apply {
+                text = getString(R.string.e_themed_note)
+                setTextColor(pal.textDim)
+                gravity = Gravity.CENTER
+                setPadding(Ui.dp(context, 24f), 0, Ui.dp(context, 24f), 0)
+            })
+        }
 
-        add(Ui.header(this, pal, "Source"))
+        add(Ui.header(this, pal, getString(R.string.e_source)))
         val sources = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(Ui.dp(context, 16f), 0, Ui.dp(context, 16f), 0)
@@ -114,13 +122,13 @@ class IconEditActivity : Activity() {
                 rightMargin = Ui.dp(context, 8f)
             }
         }
-        sources.addView(chip(if (isFolder) "Folder preview" else "Original") {
+        sources.addView(chip(getString(if (isFolder) R.string.e_folder_preview else R.string.e_original)) {
             s.source = "original"
             build()
         })
-        sources.addView(chip("Photo") { pick(true) })
-        sources.addView(chip("File") { pick(false) })
-        sources.addView(chip("Reset") {
+        sources.addView(chip(getString(R.string.e_photo)) { pick(true) })
+        sources.addView(chip(getString(R.string.e_file)) { pick(false) })
+        sources.addView(chip(getString(R.string.reset)) {
             s = IconSettings(label = s.label)
             build()
         })
@@ -129,21 +137,21 @@ class IconEditActivity : Activity() {
             addView(sources)
         })
 
-        add(Ui.header(this, pal, "Shape"))
-        add(radios((listOf("global") + IconRenderer.shapes + "none").map { it to IconRenderer.shapeName(it) }, s.shape, true) {
+        add(Ui.header(this, pal, getString(R.string.e_shape)))
+        add(radios((listOf("global") + IconRenderer.shapes + "none").map { it to IconRenderer.shapeName(this, it) }, s.shape, true) {
             s.shape = it
             updatePreview()
         })
 
-        add(Ui.header(this, pal, "Treatment"))
-        add(radios(listOf("auto" to "Auto", "fill" to "Fill", "fit" to "Fit"), s.treatment, false) {
+        add(Ui.header(this, pal, getString(R.string.e_treatment)))
+        add(radios(listOf("auto" to getString(R.string.t_auto), "fill" to getString(R.string.t_fill), "fit" to getString(R.string.t_fit)), s.treatment, false) {
             s.treatment = it
             build()
         })
 
-        add(Ui.header(this, pal, "Scale"))
+        add(Ui.header(this, pal, getString(R.string.e_scale)))
         val scaleLabel = TextView(this).apply {
-            text = "${s.scale}%"
+            text = getString(R.string.percent, s.scale)
             setTextColor(pal.text)
             setPadding(Ui.dp(context, 20f), 0, Ui.dp(context, 20f), 0)
         }
@@ -156,7 +164,7 @@ class IconEditActivity : Activity() {
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(sb: SeekBar?, p: Int, fromUser: Boolean) {
                     s.scale = 50 + p * 5
-                    scaleLabel.text = "${s.scale}%"
+                    scaleLabel.text = getString(R.string.percent, s.scale)
                     updatePreview()
                 }
 
@@ -165,11 +173,14 @@ class IconEditActivity : Activity() {
             })
         })
 
-        add(Ui.header(this, pal, "Background (Fit only)"))
+        add(Ui.header(this, pal, getString(R.string.e_background)))
         val custom = s.background.startsWith("#")
         val bgEnabled = s.treatment != "fill"
         add(radios(
-            listOf("auto" to "Auto", "white" to "White", "black" to "Black", "transparent" to "Transparent", "custom" to "Custom"),
+            listOf(
+                "auto" to getString(R.string.t_auto), "white" to getString(R.string.bg_white), "black" to getString(R.string.bg_black),
+                "transparent" to getString(R.string.bg_transparent), "custom" to getString(R.string.bg_custom),
+            ),
             if (custom) "custom" else s.background, true,
         ) {
             s.background = if (it == "custom") (if (custom) s.background else "#3E8C7E") else it
@@ -182,7 +193,7 @@ class IconEditActivity : Activity() {
                 setText(s.background)
                 setTextColor(pal.text)
                 setHintTextColor(pal.textDim)
-                hint = "#RRGGBB"
+                hint = getString(R.string.hex_hint)
                 isSingleLine = true
                 backgroundTintList = pal.accentList
                 addTextChangedListener(object : TextWatcher {
@@ -215,13 +226,13 @@ class IconEditActivity : Activity() {
             setPadding(Ui.dp(context, 20f), Ui.dp(context, 24f), Ui.dp(context, 20f), Ui.dp(context, 24f))
         }
         buttons.addView(TextView(this).apply {
-            text = "Cancel"
+            text = getString(R.string.cancel)
             textSize = 15f
             setTextColor(pal.accent)
             setPadding(Ui.dp(context, 18f), Ui.dp(context, 10f), Ui.dp(context, 18f), Ui.dp(context, 10f))
             setOnClickListener { cancel() }
         })
-        buttons.addView(Ui.button(this, pal, "Save") { save() })
+        buttons.addView(Ui.button(this, pal, getString(R.string.save)) { save() })
         add(buttons)
     }
 
@@ -239,7 +250,7 @@ class IconEditActivity : Activity() {
         try {
             startActivityForResult(i, if (photo) reqPhoto else reqFile)
         } catch (_: Exception) {
-            Toast.makeText(this, "No picker available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.no_picker, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -267,7 +278,7 @@ class IconEditActivity : Activity() {
 
     private fun usePicked(path: String?) {
         if (path == null) {
-            Toast.makeText(this, "Couldn't read that image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.cant_read_image, Toast.LENGTH_SHORT).show()
             return
         }
         dropPicked()
@@ -289,6 +300,7 @@ class IconEditActivity : Activity() {
         val icons = Store.layout.icons
         if (s.isDefault()) icons.remove(target) else icons[target] = s
         picked = null
+        AppKey.parse(target.removePrefix("app:"))?.let { DiskIcons.clearPackage(it.pkg) }
         IconRenderer.clear()
         Store.save()
         Store.cleanIcons()

@@ -72,7 +72,7 @@ object Shortcuts {
             Apps.la.startShortcut(pkg, id, bounds, opts, user)
             true
         } catch (_: Exception) {
-            Toast.makeText(ctx, "Shortcut isn't available", Toast.LENGTH_SHORT).show()
+            Toast.makeText(ctx, R.string.shortcut_unavailable, Toast.LENGTH_SHORT).show()
             false
         }
     }
@@ -124,7 +124,7 @@ class PinShortcutActivity : Activity() {
                     l.placeFirstFree(item)
                     Store.save()
                     Apps.listener?.invoke()
-                    Toast.makeText(this, "Added to home screen", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, R.string.added_to_home, Toast.LENGTH_SHORT).show()
                 }
             }
         } catch (_: Exception) {

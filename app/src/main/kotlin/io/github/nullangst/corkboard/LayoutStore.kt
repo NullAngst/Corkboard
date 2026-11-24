@@ -76,6 +76,10 @@ class Settings {
     var drawerKeyboard = false
     var theme = "system"
     var swipeDown = true
+    var themedIcons = false
+
+    /** Disk icon cache size in MB. 0 turns it off. */
+    var diskCacheMb = 25
 
     /** "fingerprint|versionCode" of the build where the swipe-down hidden API failed. */
     var shadeBroken: String? = null
@@ -363,6 +367,8 @@ object Store {
                 put("drawerKeyboard", s.drawerKeyboard)
                 put("theme", s.theme)
                 put("swipeDown", s.swipeDown)
+                put("themedIcons", s.themedIcons)
+                put("diskCacheMb", s.diskCacheMb)
                 s.shadeBroken?.let { put("shadeBroken", it) }
             })
             put("pages", JSONArray().apply {
@@ -402,6 +408,8 @@ object Store {
             s.drawerKeyboard = j.optBoolean("drawerKeyboard", false)
             s.theme = j.optString("theme", "system")
             s.swipeDown = j.optBoolean("swipeDown", true)
+            s.themedIcons = j.optBoolean("themedIcons", false)
+            s.diskCacheMb = j.optInt("diskCacheMb", 25).coerceIn(0, 2000)
             s.shadeBroken = if (j.has("shadeBroken")) j.optString("shadeBroken") else null
         }
         l.pages.clear()

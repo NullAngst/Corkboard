@@ -43,7 +43,7 @@ import kotlin.math.roundToInt
 class HostView(ctx: Context) : AppWidgetHostView(ctx) {
     var onRemove: (() -> Unit)? = null
 
-    override fun getErrorView(): View = Widgets.errorBox(context, "Can't load widget") { onRemove?.invoke() }
+    override fun getErrorView(): View = Widgets.errorBox(context, context.getString(R.string.cant_load_widget)) { onRemove?.invoke() }
 }
 
 /** Wraps a widget so a long-press anywhere on it lifts it, whatever the widget does with touches. */
@@ -113,7 +113,7 @@ class Widgets(private val act: HomeActivity) {
                     gravity = Gravity.CENTER
                 })
                 addView(Button(ctx).apply {
-                    this.text = "Remove"
+                    this.text = ctx.getString(R.string.remove)
                     setTextColor(pal.accent)
                     setBackgroundColor(0)
                     setOnClickListener { onRemove() }
@@ -141,11 +141,11 @@ class Widgets(private val act: HomeActivity) {
         val info = if (item.widgetId >= 0) awm.getAppWidgetInfo(item.widgetId) else null
         when {
             item.widgetId < 0 -> {
-                val label = item.provider?.let { p -> Apps.apps.values.firstOrNull { it.key.pkg == p.packageName }?.label } ?: "widget"
-                frame.addView(errorBox(act, "Tap to set up $label again") { act.removeItem(item) })
+                val label = item.provider?.let { p -> Apps.apps.values.firstOrNull { it.key.pkg == p.packageName }?.label } ?: act.getString(R.string.widget_generic)
+                frame.addView(errorBox(act, act.getString(R.string.widget_set_up_again, label)) { act.removeItem(item) })
                 frame.setOnClickListener { setUpAgain(item) }
             }
-            info == null -> frame.addView(errorBox(act, "Can't load widget") { act.removeItem(item) })
+            info == null -> frame.addView(errorBox(act, act.getString(R.string.cant_load_widget)) { act.removeItem(item) })
             else -> {
                 val hv = host.createView(act, item.widgetId, info)
                 if (hv is HostView) hv.onRemove = { act.removeItem(item) }
@@ -316,7 +316,7 @@ class Widgets(private val act: HomeActivity) {
             null
         }
         if (info == null) {
-            Toast.makeText(act, "That widget's app is not installed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(act, R.string.widget_app_missing, Toast.LENGTH_SHORT).show()
             return
         }
         val page = Store.layout.pageOf(item)
@@ -344,13 +344,13 @@ class Widgets(private val act: HomeActivity) {
             setPadding((16 * d).toInt(), (8 * d).toInt(), (16 * d).toInt(), (24 * d).toInt())
         }
         list.addView(TextView(act).apply {
-            text = "Widgets"
+            text = act.getString(R.string.widgets)
             textSize = 22f
             setTextColor(pal.text)
             setPadding(0, (8 * d).toInt(), 0, (8 * d).toInt())
         })
         if (groups.isEmpty()) list.addView(TextView(act).apply {
-            text = "No installed app provides a widget."
+            text = act.getString(R.string.no_widgets)
             setTextColor(pal.textDim)
         })
         val cellW = act.pageCellW()
@@ -360,7 +360,7 @@ class Widgets(private val act: HomeActivity) {
         for ((k, infos) in groups.entries.sortedBy { appLabel(it.key.first, it.key.second).lowercase() }) {
             val work = Apps.isWork(k.second)
             list.addView(TextView(act).apply {
-                text = appLabel(k.first, k.second) + if (work) "  (Work)" else ""
+                text = appLabel(k.first, k.second).let { if (work) act.getString(R.string.work_suffix, it) else it }
                 textSize = 16f
                 setTextColor(pal.accent)
                 setPadding(0, (16 * d).toInt(), 0, (6 * d).toInt())
@@ -387,7 +387,7 @@ class Widgets(private val act: HomeActivity) {
                 }
                 row.addView(preview, LinearLayout.LayoutParams((150 * d).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT))
                 row.addView(TextView(act).apply {
-                    text = "${info.loadLabel(act.packageManager)}\n${s.x} × ${s.y}"
+                    text = act.getString(R.string.widget_size, info.loadLabel(act.packageManager), s.x, s.y)
                     setTextColor(pal.text)
                     setPadding((12 * d).toInt(), 0, 0, 0)
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -416,7 +416,7 @@ class Widgets(private val act: HomeActivity) {
     fun startResize(item: WidgetItem, grid: CellGrid) {
         val info = if (item.widgetId >= 0) awm.getAppWidgetInfo(item.widgetId) else null
         if (info == null || info.resizeMode == AppWidgetProviderInfo.RESIZE_NONE) {
-            Toast.makeText(act, "This widget can't be resized", Toast.LENGTH_SHORT).show()
+            Toast.makeText(act, R.string.cant_resize_widget, Toast.LENGTH_SHORT).show()
             return
         }
         val l = Store.layout
