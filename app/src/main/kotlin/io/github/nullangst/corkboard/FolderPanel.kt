@@ -27,10 +27,10 @@ class FolderPanel(private val act: HomeActivity, val folder: FolderItem) : Frame
     private val pal = act.pal
     private val d = resources.displayMetrics.density
     private val cols = min(4, Store.layout.settings.columns)
-    private val cellW = (84 * d).roundToInt()
-    private val cellH = (IconRenderer.sizePx(act) + 40 * d).roundToInt()
+    private val slotW = (84 * d).roundToInt()
+    private val slotH = (IconRenderer.sizePx(act) + 40 * d).roundToInt()
     private val order = folder.apps.toMutableList()
-    private val grid = CellGrid(act, cols, 1).apply { fixedCellHeight = cellH }
+    private val grid = CellGrid(act, cols, 1).apply { fixedCellHeight = slotH }
     private val scroll = ScrollView(act)
     private val card = LinearLayout(act)
     private val title = EditText(act)
@@ -70,10 +70,10 @@ class FolderPanel(private val act: HomeActivity, val folder: FolderItem) : Frame
         }
         card.addView(title, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
-        scroll.addView(grid, FrameLayout.LayoutParams(cols * cellW, ViewGroup.LayoutParams.WRAP_CONTENT))
+        scroll.addView(grid, FrameLayout.LayoutParams(cols * slotW, ViewGroup.LayoutParams.WRAP_CONTENT))
         val rows = ceil(order.size / cols.toFloat()).toInt().coerceAtLeast(1)
         val maxH = (resources.displayMetrics.heightPixels * 0.55f).roundToInt()
-        card.addView(scroll, LinearLayout.LayoutParams(cols * cellW, min(rows * cellH, max(cellH, maxH))))
+        card.addView(scroll, LinearLayout.LayoutParams(cols * slotW, min(rows * slotH, max(slotH, maxH))))
         addView(card, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER))
         build()
     }
@@ -123,8 +123,8 @@ class FolderPanel(private val act: HomeActivity, val folder: FolderItem) : Frame
     /** Reorder inside the panel while dragging one of its apps. */
     fun dragOver(x: Float, y: Float, key: AppKey) {
         val r = rectInRoot(grid)
-        val cx = ((x - r.left) / cellW).toInt().coerceIn(0, cols - 1)
-        val cy = ((y - r.top) / cellH).toInt().coerceAtLeast(0)
+        val cx = ((x - r.left) / slotW).toInt().coerceIn(0, cols - 1)
+        val cy = ((y - r.top) / slotH).toInt().coerceAtLeast(0)
         val idx = (cy * cols + cx).coerceIn(0, order.size - 1)
         val from = order.indexOf(key)
         if (from < 0 || from == idx) return
