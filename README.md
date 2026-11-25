@@ -55,9 +55,9 @@ App shortcuts, pinned shortcuts and pausing work apps only work once Corkboard i
 
 On first start the home screen is empty and every app is in the drawer. Everything installed at that point counts as already seen, so it does not spill 150 icons across a dozen pages. Apps installed after that land on the home screen while "Add new apps to home screen" is on.
 
-- **Tap** an app to open it. **Long-press** to lift it. Let go without moving to get its menu.
+- **Tap** an app to open it. **Long-press** to lift it and open its menu at once, like Pixel Launcher. Let go to pick from the menu, or keep moving: the menu closes and you drag the app.
 - **Swipe up** from anywhere above the navigation bar for the drawer (or tap the **Apps** button, if you turned on "Open the drawer with a button"), **swipe down** for notifications, **swipe left or right** for pages. With gesture navigation, a swipe that starts on the very bottom edge belongs to Android and goes to recents instead.
-- **Long-press an app in the drawer** and start moving it: the drawer drops away and you place it on the home screen. Let go without moving for its menu.
+- **Long-press an app in the drawer** for its menu. Start moving instead and the drawer drops away so you can place it on the home screen.
 - **Long-press empty space** for Wallpaper, Widgets and Launcher settings. The widget picker has a search box at the top that matches widget and app names.
 - **Home button** while on the home screen closes whatever is open and jumps to page 1.
 

@@ -37,6 +37,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.view.ContextThemeWrapper
 import android.view.WindowInsets
 import android.view.animation.DecelerateInterpolator
 import android.widget.EditText
@@ -726,7 +727,9 @@ class HomeActivity : Activity() {
     }
 
     private fun renameDialog(current: String, onDone: (String?) -> Unit) {
-        val et = EditText(this).apply {
+        // Built in the dialog's own theme: from the home screen's dark-based theme the text came out
+        // white on a light dialog, so the name looked blank in light mode.
+        val et = EditText(ContextThemeWrapper(this, Themes.dialogTheme(pal))).apply {
             setText(current)
             setSelection(text.length)
             isSingleLine = true
@@ -890,26 +893,30 @@ class HomeActivity : Activity() {
         return true
     }
 
+    /**
+     * Long-press, the way Pixel Launcher does it: the item lifts and its menu opens right away,
+     * while the finger is still down. Let go and the menu stays to tap; move past the touch slop
+     * instead and the menu closes and the drag carries on (onDragMove).
+     */
+    private fun liftWithMenu(st: DragState, v: View) {
+        if (Store.layout.settings.locked || !startDrag(st, v)) Haptics.play(v, Haptics.LIFT, Haptics.Fx.LIFT)
+        itemMenu(st)
+    }
+
     private fun itemLongPress(v: View, item: Item, src: Src): Boolean {
-        val st = DragState(src, item, v, if (src == Src.DOCK) 1 else item.w, if (src == Src.DOCK) 1 else item.h)
-        if (Store.layout.settings.locked || !startDrag(st, v)) {
-            Haptics.play(v, Haptics.LIFT, Haptics.Fx.LIFT)
-            itemMenu(st)
-        }
+        liftWithMenu(DragState(src, item, v, if (src == Src.DOCK) 1 else item.w, if (src == Src.DOCK) 1 else item.h), v)
         return true
     }
 
     fun startDrawerDrag(v: View, app: AppInfo) {
-        val st = DragState(Src.DRAWER, null, v, 1, 1).apply { appKey = app.key }
-        if (Store.layout.settings.locked || !startDrag(st, v)) itemMenu(st)
+        liftWithMenu(DragState(Src.DRAWER, null, v, 1, 1).apply { appKey = app.key }, v)
     }
 
     fun startFolderDrag(v: View, folder: FolderItem, key: AppKey) {
-        val st = DragState(Src.FOLDER, null, v, 1, 1).apply {
+        liftWithMenu(DragState(Src.FOLDER, null, v, 1, 1).apply {
             appKey = key
             this.folder = folder
-        }
-        if (Store.layout.settings.locked || !startDrag(st, v)) itemMenu(st)
+        }, v)
     }
 
     private fun startShortcutDrag(v: View, si: ShortcutInfo) {
@@ -1282,7 +1289,9 @@ class HomeActivity : Activity() {
         drag = null
         if (!result) st.view?.visibility = View.VISIBLE
         if (st.pendingMenu) {
-            itemMenu(st)
+            // Let go without moving: the menu opened at the long-press is still up. Only put it back
+            // if something closed it in the meantime.
+            if (overlay == null) itemMenu(st)
             if (rebindPending) rebind()
             return
         }
