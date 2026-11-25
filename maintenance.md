@@ -62,6 +62,10 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
 3. Drag an app to Remove and to Uninstall. Remove takes it off the home screen; Uninstall opens the system dialog and the icon returns until the app is gone.
 4. Automatic backup: open the backup folder and confirm the newest `corkboard-auto-*.zip` is recent and that no more than the chosen number are there. Tap Back up now once. If the status shows an error, pick the folder again.
 
+## 4.2.5. Coming home animation
+
+Open any app, then press Home. The dock and icons should rise and fade in, bottom rows first, after the app's close animation, and end exactly in place. Lock the screen with an app open, unlock, and check the icons are simply there (the entry is skipped when the screen was off). Turn on Remove animations in Accessibility and check it is skipped. If a new Android version makes the icons sit hidden too long before moving, lower `ENTER_WAIT_MS` in `HomeActivity.kt`; it is the longest they wait for `onEnterAnimationComplete`.
+
 ## 4.3. Themed and generated icons
 
 With Themed icons and "Theme apps without a monochrome icon" on, scroll the drawer and look for generated icons that came out as a solid blob or an inverted plate. The generator lives in `generateMono` in `IconRenderer.kt`; the contrast curve (0.3 to 0.7) and the white backdrop for old icons are the two knobs. Compare against Pixel Launcher on the same apps if one is at hand.

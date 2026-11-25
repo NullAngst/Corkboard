@@ -9,6 +9,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.ActivityOptions
 import android.app.AlertDialog
+import android.animation.ValueAnimator
 import android.app.role.RoleManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ClipData
@@ -25,6 +26,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.view.DragEvent
 import android.view.Gravity
@@ -34,6 +36,7 @@ import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.animation.DecelerateInterpolator
 import android.widget.EditText
@@ -54,6 +57,9 @@ const val REQ_ROLE = 21
 
 /** Height of the empty band above the grid where the Remove and Uninstall bar appears. */
 const val TOP_BAND_DP = 48f
+
+/** Longest the coming-home icons wait for the system's close transition before they start anyway. */
+const val ENTER_WAIT_MS = 220L
 
 fun isDefaultHome(ctx: Context): Boolean = try {
     ctx.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
@@ -208,6 +214,8 @@ class HomeActivity : Activity() {
     private var rebindPending = false
     private val d get() = resources.displayMetrics.density
     private var backCallback: Any? = null
+    private var enterPending = false
+    private var enterGo: Runnable? = null
     private lateinit var dropBar: LinearLayout
     private lateinit var dropRemove: TextView
     private lateinit var dropUninstall: TextView
@@ -244,10 +252,20 @@ class HomeActivity : Activity() {
     override fun onStop() {
         super.onStop()
         AutoBackup.flush()
+        settleEnter()
+        // An app covered the home screen while the screen was on: play the entry animation when
+        // coming back. Screen-off stops (lock, then unlock) are left to Android's unlock animation.
+        enterPending = getSystemService(PowerManager::class.java)?.isInteractive == true
         try {
             widgets.host.stopListening()
         } catch (_: Exception) {
         }
+    }
+
+    override fun onEnterAnimationComplete() {
+        super.onEnterAnimationComplete()
+        // The system's close transition is done: start the icons now if they're still waiting.
+        enterGo?.let { root.removeCallbacks(it); it.run() }
     }
 
     override fun onResume() {
@@ -257,6 +275,10 @@ class HomeActivity : Activity() {
         applyRotation()
         if (Store.revision != boundRevision) rebind()
         updateBanner()
+        if (enterPending) {
+            enterPending = false
+            playEnter()
+        }
         AutoBackup.periodicCheck(this)
     }
 
@@ -1247,6 +1269,81 @@ class HomeActivity : Activity() {
         }
         rebind()
         workspace.snapTo(workspace.current, animate = false)
+    }
+
+    // ---- Coming home ----
+
+    private fun enterTargets(): List<Pair<View, Long>> {
+        val out = ArrayList<Pair<View, Long>>()
+        for (i in 0 until dock.childCount) out.add(dock.getChildAt(i) to 0L)
+        val page = workspace.pages.getOrNull(workspace.current) ?: return out
+        val rows = Store.layout.settings.rows
+        for (i in 0 until page.childCount) {
+            val v = page.getChildAt(i)
+            val lp = v.layoutParams as? CellGrid.LP ?: continue
+            // Bottom rows first, rising toward the top, right behind the dock.
+            val fromBottom = (rows - (lp.y + lp.h)).coerceAtLeast(0)
+            out.add(v to 30L + fromBottom * 22L)
+        }
+        return out
+    }
+
+    /**
+     * Icons, widgets and the dock rise a little, grow from 88% and fade in, bottom rows first, when
+     * coming back from an app. Skipped when Android's "Remove animations" is on.
+     *
+     * The system plays its own transition as the app closes, and the app's window covers most of
+     * the home screen for the first part of it. Starting right away spends the motion under that
+     * window, so the icons wait, hidden, until the transition reports done or [ENTER_WAIT_MS] has
+     * passed since the first frame, whichever comes first.
+     */
+    private fun playEnter() {
+        if (!ValueAnimator.areAnimatorsEnabled()) return
+        if (folderPanel != null || overlay != null || drawer.isOpen) return
+        val rise = 24 * d
+        val targets = enterTargets().filter { it.first.visibility == View.VISIBLE }
+        if (targets.isEmpty()) return
+        for ((v, _) in targets) {
+            v.animate().cancel()
+            v.alpha = 0f
+            v.scaleX = 0.88f
+            v.scaleY = 0.88f
+            v.translationY = rise
+        }
+        val go = object : Runnable {
+            override fun run() {
+                if (enterGo !== this) return
+                enterGo = null
+                for ((v, delay) in targets) {
+                    v.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f)
+                        .setStartDelay(delay).setDuration(300).setInterpolator(DecelerateInterpolator(1.8f))
+                        .start()
+                }
+            }
+        }
+        enterGo = go
+        // The fallback timer counts from the first frame drawn, which can come a moment after
+        // onResume when an app was on top.
+        root.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                root.viewTreeObserver.removeOnPreDrawListener(this)
+                if (enterGo === go) root.postDelayed(go, ENTER_WAIT_MS)
+                return true
+            }
+        })
+    }
+
+    /** Puts everything back at rest, so a half-played entry never leaves icons faded or shifted. */
+    private fun settleEnter() {
+        enterGo?.let { root.removeCallbacks(it) }
+        enterGo = null
+        for ((v, _) in enterTargets()) {
+            v.animate().cancel()
+            v.alpha = 1f
+            v.scaleX = 1f
+            v.scaleY = 1f
+            v.translationY = 0f
+        }
     }
 
     private fun openDrawerFromButton() {
