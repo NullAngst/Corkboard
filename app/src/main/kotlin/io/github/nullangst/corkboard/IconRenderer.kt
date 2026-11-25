@@ -409,7 +409,9 @@ object IconRenderer {
                 // Layers at 150% so the 72dp safe area fills the shape, same as the framework; Fit
                 // draws the foreground at 100% instead, so the logo sits smaller.
                 val ext = (size * 0.25f).roundToInt()
-                if (chosenBg == null) {
+                // Some apps (Chrome among them) draw their whole logo in the background layer and leave
+                // the foreground empty; replacing that layer would erase the icon, so it stays.
+                if (chosenBg == null || !hasForeground(src)) {
                     src.background?.let { drawLayer(c, it, ext, size, max(scale, 1f)) }
                 } else if (chosenBg != Color.TRANSPARENT) {
                     c.drawColor(chosenBg)
@@ -435,7 +437,9 @@ object IconRenderer {
                     c.drawBitmap(bmp, content, Rect(0, 0, size, size), paint)
                     c.restore()
                 } else {
-                    val bg = chosenBg ?: sampledBackground(bmp) ?: Color.WHITE
+                    // Sample a background only for icons on their own color plate (circles and the like):
+                    // for an open logo the edge color is the logo itself, and would swallow its shape.
+                    val bg = chosenBg ?: (if (isPlate(px, size, content)) sampledBackground(bmp) else null) ?: Color.WHITE
                     if (bg != Color.TRANSPARENT) c.drawColor(bg)
                     val target = size * 0.68f * scale
                     val k = target / max(content.width(), content.height()).coerceAtLeast(1)
@@ -498,6 +502,27 @@ object IconRenderer {
             if (px[y * size + x] ushr 24 >= 200) solid++
         }
         return solid >= w * h * 0.86f
+    }
+
+    /** Solid enough inside its bounds to be a plate the logo sits on: a circle covers about 79%. */
+    private fun isPlate(px: IntArray, size: Int, content: Rect): Boolean {
+        var solid = 0
+        for (y in content.top until content.bottom) for (x in content.left until content.right) {
+            if (px[y * size + x] ushr 24 >= 200) solid++
+        }
+        return solid >= content.width() * content.height() * 0.7f
+    }
+
+    /** True when an adaptive icon's foreground actually draws something. */
+    private fun hasForeground(d: AdaptiveIconDrawable): Boolean {
+        val fg = d.foreground ?: return false
+        return try {
+            val b = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888)
+            drawLayer(Canvas(b), fg, 12, 48, 1f)
+            pixels(b).count { it ushr 24 > 32 } > 48 * 48 / 100
+        } catch (_: Throwable) {
+            true
+        }
     }
 
     private fun contentBounds(b: Bitmap): Rect {

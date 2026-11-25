@@ -63,6 +63,10 @@ class WidgetFrame(ctx: Context, var item: WidgetItem) : FrameLayout(ctx) {
         onLongPress?.invoke(this)
     }
 
+    init {
+        isHapticFeedbackEnabled = false
+    }
+
     private fun track(ev: MotionEvent) {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {

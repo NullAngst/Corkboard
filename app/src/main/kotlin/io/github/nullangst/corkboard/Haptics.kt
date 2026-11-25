@@ -81,7 +81,7 @@ object Haptics {
         val vib = vibrator
         try {
             if (vib == null || !vib.hasVibrator()) {
-                v?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                v?.rootView?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 return
             }
             val e = VibrationEffect.createPredefined(effect(fx))

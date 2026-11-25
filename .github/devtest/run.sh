@@ -7,6 +7,7 @@ pkg=io.github.nullangst.corkboard
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell cmd overlay enable com.android.internal.systemui.navbar.gestural || true
 adb shell cmd role add-role-holder --user 0 android.app.role.HOME "$pkg" || true
+adb logcat -c
 size=$(adb shell wm size | tr -d '\r' | awk '{print $3}')
 w=${size%x*}; h=${size#*x}
 cx=$((w / 2))
@@ -80,6 +81,10 @@ printf 'apps button %s,%s\n' "$ax" "$ay" > "$out/info.txt"
 adb shell input tap "$ax" "$ay"
 shot 03-drawer-from-button 1.5
 adb shell input keyevent KEYCODE_HOME
+sleep 1
+adb shell input tap "$ax" "$ay"
+shot 03b-drawer-second-tap 1.5
+adb shell input keyevent KEYCODE_HOME
 sleep 1.5
 # Widget picker with search
 adb shell input swipe "$cx" $((h * 20 / 100)) "$cx" $((h * 20 / 100)) 1500
@@ -99,9 +104,14 @@ for i in 1 2 3 4 5 6; do adb shell input motionevent MOVE $((gx + i * 40)) "$gy"
 sleep 0.6; adb shell input motionevent UP $((gx + 240)) "$gy"
 shot 07-after-drag 1.5
 adb shell dumpsys vibrator_manager > "$out/vibrator.txt" 2>&1
+adb shell input swipe "$cx" $((h * 55 / 100)) "$cx" $((h * 55 / 100)) 1500
+sleep 1.5
+adb shell input keyevent KEYCODE_BACK
+adb shell dumpsys vibrator_manager > "$out/vibrator2.txt" 2>&1
 # Themed icons with generation on
 seed 1
 shot 08-home-themed 2
 adb shell input tap "$ax" "$ay"
 shot 09-drawer-themed 1.5
 adb logcat -d -b crash > "$out/crash.txt"
+adb logcat -d -s CorkTouch > "$out/cork.txt"
