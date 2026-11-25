@@ -29,6 +29,10 @@
     <string name="remove">Quitar</string>
     <string name="resize">Cambiar tamaño</string>
     <string name="folder_default">Carpeta</string>
+    <string name="pin_title">¿Añadir a la pantalla de inicio?</string>
+    <string name="pin_from">De %1$s</string>
+    <string name="pin_add">Añadir</string>
+    <string name="b_folder_lost">Corkboard ya no tiene acceso a la carpeta de copias. Vuelve a elegir la carpeta.</string>
     <string name="cant_pin_shortcut">No se pudo fijar ese acceso directo</string>
     <string name="shortcut_unavailable">El acceso directo no está disponible</string>
     <string name="cant_load_widget">No se puede cargar el widget</string>

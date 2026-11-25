@@ -444,8 +444,8 @@ class SettingsActivity : Activity() {
             })
             add(Ui.row(this, pal, str(R.string.b_now), null) {
                 AutoBackup.backupNow(this) { ok ->
-                    Toast.makeText(this, if (ok) R.string.b_saved else R.string.b_save_failed, Toast.LENGTH_SHORT).show()
-                    build()
+                    Toast.makeText(applicationContext, if (ok) R.string.b_saved else R.string.b_save_failed, Toast.LENGTH_SHORT).show()
+                    if (!isDestroyed) build()
                 }
             })
         }
@@ -512,49 +512,81 @@ class SettingsActivity : Activity() {
                     s.autoBackupOn = true
                     s.autoBackupError = null
                     changed()
-                    AutoBackup.backupNow(this) { build() }
+                    AutoBackup.backupNow(this) { if (!isDestroyed) build() }
                 } catch (_: Exception) {
                     Toast.makeText(this, R.string.b_save_failed, Toast.LENGTH_SHORT).show()
                 }
                 build()
             }
-            reqExport -> try {
-                contentResolver.openOutputStream(uri)?.use { Store.exportZip(it) }
-                Toast.makeText(this, R.string.s_exported, Toast.LENGTH_SHORT).show()
-            } catch (_: Exception) {
-                Toast.makeText(this, R.string.s_export_failed, Toast.LENGTH_LONG).show()
-            }
-            reqImport -> try {
-                val restored = contentResolver.openInputStream(uri)?.use { Store.importZip(it) } ?: throw IllegalStateException()
-                val host = AppWidgetHost(this, Apps.WIDGET_HOST_ID)
-                for (it in Store.layout.allItems()) {
-                    if (it is WidgetItem && it.widgetId >= 0) try {
-                        host.deleteAppWidgetId(it.widgetId)
+            reqExport -> {
+                // The layout is read here on the main thread; the zip, with every icon, is written off it.
+                val json = Store.backupJson()
+                val app = applicationContext
+                Thread {
+                    val ok = try {
+                        val out = app.contentResolver.openOutputStream(uri) ?: throw java.io.IOException("No output")
+                        out.use { Store.exportZip(it, json) }
+                        true
                     } catch (_: Exception) {
+                        false
                     }
-                }
-                // Backup settings belong to this phone: its folder permission doesn't travel in a zip.
-                val here = Store.layout.settings
-                restored.settings.autoBackupOn = here.autoBackupOn
-                restored.settings.autoBackupUri = here.autoBackupUri
-                restored.settings.autoBackupFreq = here.autoBackupFreq
-                restored.settings.autoBackupKeep = here.autoBackupKeep
-                restored.settings.lastAutoBackup = here.lastAutoBackup
-                restored.settings.autoBackupError = here.autoBackupError
-                Store.replace(restored)
-                Apps.reload()
-                // Apps installed here but not in the backup are not "new"; don't scatter them on the home screen.
-                restored.seen.addAll(Apps.apps.keys.map { it.toString() })
-                Apps.reconcile()
-                IconRenderer.clear()
-                DiskIcons.clearAll(this)
-                Store.save()
-                Store.cleanIcons()
-                Toast.makeText(this, R.string.s_restored, Toast.LENGTH_SHORT).show()
-                build()
-            } catch (_: Exception) {
-                Toast.makeText(this, R.string.s_not_backup, Toast.LENGTH_LONG).show()
+                    runOnUiThread {
+                        Toast.makeText(app, if (ok) R.string.s_exported else R.string.s_export_failed, Toast.LENGTH_SHORT).show()
+                    }
+                }.start()
+            }
+            reqImport -> {
+                val app = applicationContext
+                Thread {
+                    val im = try {
+                        app.contentResolver.openInputStream(uri)?.use { Store.importZip(it) }
+                    } catch (_: Exception) {
+                        null
+                    }
+                    runOnUiThread {
+                        if (im == null) {
+                            Toast.makeText(app, R.string.s_not_backup, Toast.LENGTH_LONG).show()
+                        } else {
+                            applyImport(im)
+                            Toast.makeText(app, R.string.s_restored, Toast.LENGTH_SHORT).show()
+                            if (!isDestroyed) build()
+                        }
+                    }
+                }.start()
             }
         }
+    }
+
+    /** Swaps in a read backup. Main thread. */
+    private fun applyImport(im: Store.Imported) {
+        val restored = im.layout
+        val app = applicationContext
+        val host = AppWidgetHost(app, Apps.WIDGET_HOST_ID)
+        for (it in Store.layout.allItems()) {
+            if (it is WidgetItem && it.widgetId >= 0) try {
+                host.deleteAppWidgetId(it.widgetId)
+            } catch (_: Exception) {
+            }
+        }
+        // These belong to this phone, not the backup: the backup folder's permission doesn't travel
+        // in a zip, and the swipe-down check is per Android build.
+        val here = Store.layout.settings
+        restored.settings.autoBackupOn = here.autoBackupOn
+        restored.settings.autoBackupUri = here.autoBackupUri
+        restored.settings.autoBackupFreq = here.autoBackupFreq
+        restored.settings.autoBackupKeep = here.autoBackupKeep
+        restored.settings.lastAutoBackup = here.lastAutoBackup
+        restored.settings.autoBackupError = here.autoBackupError
+        restored.settings.shadeBroken = here.shadeBroken
+        Store.commitImport(im)
+        Store.replace(restored)
+        Apps.reload()
+        // Apps installed here but not in the backup are not "new"; don't scatter them on the home screen.
+        restored.seen.addAll(Apps.apps.keys.map { it.toString() })
+        Apps.reconcile()
+        IconRenderer.clear()
+        DiskIcons.clearAll(app)
+        Store.save()
+        Store.cleanIcons()
     }
 }

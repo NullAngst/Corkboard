@@ -31,6 +31,10 @@
     <string name="remove">Remove</string>
     <string name="resize">Resize</string>
     <string name="folder_default">Folder</string>
+    <string name="pin_title">Add to home screen?</string>
+    <string name="pin_from">From %1$s</string>
+    <string name="pin_add">Add</string>
+    <string name="b_folder_lost">Corkboard no longer has access to the backup folder. Pick the folder again.</string>
     <string name="cant_pin_shortcut">Couldn\'t pin that shortcut</string>
     <string name="shortcut_unavailable">Shortcut isn\'t available</string>
     <string name="cant_load_widget">Can\'t load widget</string>

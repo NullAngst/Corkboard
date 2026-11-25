@@ -29,6 +29,10 @@
     <string name="remove">Entfernen</string>
     <string name="resize">Größe ändern</string>
     <string name="folder_default">Ordner</string>
+    <string name="pin_title">Zum Startbildschirm hinzufügen?</string>
+    <string name="pin_from">Von %1$s</string>
+    <string name="pin_add">Hinzufügen</string>
+    <string name="b_folder_lost">Corkboard hat keinen Zugriff mehr auf den Sicherungsordner. Wähle den Ordner erneut aus.</string>
     <string name="cant_pin_shortcut">Verknüpfung konnte nicht angepinnt werden</string>
     <string name="shortcut_unavailable">Verknüpfung ist nicht verfügbar</string>
     <string name="cant_load_widget">Widget kann nicht geladen werden</string>

@@ -25,6 +25,7 @@ import android.widget.EditText
 import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.TextView
+import java.text.Normalizer
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -170,10 +171,15 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     }
 
     private fun filter() {
-        val q = search.text.toString().trim().lowercase()
-        items = Apps.drawerApps(work).filter { q.isEmpty() || it.label.lowercase().contains(q) }
+        val q = fold(search.text.toString().trim())
+        items = Apps.drawerApps(work).filter { q.isEmpty() || fold(it.label).contains(q) }
         adapter.notifyDataSetChanged()
     }
+
+    private val marks = Regex("\\p{Mn}+")
+
+    /** Lowercase with accents dropped, so "musica" finds "Música" and "uber" finds "Über". */
+    private fun fold(s: String) = Normalizer.normalize(s, Normalizer.Form.NFD).replace(marks, "").lowercase()
 
     // ---- Open and close ----
 

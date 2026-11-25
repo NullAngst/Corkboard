@@ -6,6 +6,7 @@
 package io.github.nullangst.corkboard
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
@@ -13,7 +14,13 @@ import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
+import kotlin.math.roundToInt
 
 /** App shortcuts for the long-press menu, and pinned shortcuts on the home screen. */
 object Shortcuts {
@@ -108,27 +115,86 @@ object Shortcuts {
     fun label(info: ShortcutInfo): String = (info.shortLabel ?: info.longLabel ?: info.id).toString()
 }
 
-/** Receives "Add to home screen" requests from Chrome and other apps. No UI of its own. */
+/**
+ * Receives "Add to home screen" requests from Chrome and other apps, and asks before adding, as
+ * Android expects of a launcher: without that, any app in the foreground could quietly put icons
+ * on the home screen with whatever name and picture it likes. The dialog names the app asking.
+ */
 class PinShortcutActivity : Activity() {
+    private var dialog: AlertDialog? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Store.init(this)
         Apps.init(this)
-        try {
-            val req = Apps.la.getPinItemRequest(intent)
-            if (req != null && req.isValid && req.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT) {
-                val info = req.shortcutInfo
-                if (info != null && req.accept()) {
-                    val l = Store.layout
-                    val item = ShortcutItem(l.newId(), info.`package`, info.id, Apps.serial(info.userHandle), Shortcuts.label(info))
-                    l.placeFirstFree(item)
-                    Store.save()
-                    Apps.listener?.invoke()
-                    Toast.makeText(this, R.string.added_to_home, Toast.LENGTH_SHORT).show()
-                }
-            }
+        val req = try {
+            Apps.la.getPinItemRequest(intent)
         } catch (_: Exception) {
+            null
         }
-        finish()
+        val info = req?.takeIf { it.isValid && it.requestType == LauncherApps.PinItemRequest.REQUEST_TYPE_SHORTCUT }?.shortcutInfo
+        if (req == null || info == null) {
+            finish()
+            return
+        }
+        val pal = Themes.palette(this)
+        val d = resources.displayMetrics.density
+        val from = Apps.apps.values.firstOrNull { it.key.pkg == info.`package` && it.user == info.userHandle }?.baseLabel ?: info.`package`
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            val p = (20 * d).roundToInt()
+            setPadding(p, (12 * d).roundToInt(), p, 0)
+            addView(ImageView(this@PinShortcutActivity).apply { setImageDrawable(Shortcuts.icon(this@PinShortcutActivity, info)) },
+                LinearLayout.LayoutParams((48 * d).roundToInt(), (48 * d).roundToInt()))
+            addView(LinearLayout(this@PinShortcutActivity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding((16 * d).roundToInt(), 0, 0, 0)
+                addView(TextView(this@PinShortcutActivity).apply {
+                    text = Shortcuts.label(info)
+                    textSize = 17f
+                    setTextColor(pal.text)
+                })
+                addView(TextView(this@PinShortcutActivity).apply {
+                    text = getString(R.string.pin_from, from)
+                    textSize = 14f
+                    setTextColor(pal.textDim)
+                })
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        dialog = AlertDialog.Builder(this, Themes.dialogTheme(pal))
+            .setTitle(R.string.pin_title)
+            .setView(body)
+            .setPositiveButton(R.string.pin_add) { _, _ -> add(req, info) }
+            .setNegativeButton(R.string.cancel, null)
+            .setOnDismissListener { finish() }
+            .show()
+            // Another app drawing over the dialog can't trick a tap onto Add.
+            .also { it.getButton(AlertDialog.BUTTON_POSITIVE)?.filterTouchesWhenObscured = true }
+    }
+
+    private fun add(req: LauncherApps.PinItemRequest, info: ShortcutInfo) {
+        val ok = try {
+            req.accept()
+        } catch (_: Exception) {
+            false
+        }
+        if (!ok) {
+            Toast.makeText(applicationContext, R.string.cant_pin_shortcut, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val serial = Apps.serial(info.userHandle)
+        val l = Store.layout
+        l.placeFirstFree(ShortcutItem(l.newId(), info.`package`, info.id, serial, Shortcuts.label(info)))
+        Store.save()
+        Apps.listener?.invoke()
+        Toast.makeText(applicationContext, R.string.added_to_home, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDestroy() {
+        dialog?.setOnDismissListener(null)
+        dialog?.dismiss()
+        dialog = null
+        super.onDestroy()
     }
 }

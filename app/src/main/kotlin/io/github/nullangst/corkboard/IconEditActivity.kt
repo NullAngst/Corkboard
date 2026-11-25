@@ -41,6 +41,9 @@ class IconEditActivity : Activity() {
     private lateinit var s: IconSettings
     /** True while the picker is choosing the themed-look image instead of the icon image. */
     private var pickingMono = false
+
+    /** Images picked in this editor, kept safe from cleanups until it closes. */
+    private val picked = ArrayList<String>()
     private lateinit var preview: ImageView
     private lateinit var scroll: ScrollView
     private lateinit var list: LinearLayout
@@ -55,6 +58,19 @@ class IconEditActivity : Activity() {
         }
         original = Store.layout.icons[target]
         s = original?.copy() ?: IconSettings()
+        // The photo picker can push this screen out of memory, and rotating rebuilds it: keep the edits.
+        savedInstanceState?.let { b ->
+            s = IconSettings(
+                b.getString("source") ?: s.source, b.getString("file"), b.getString("shape") ?: s.shape,
+                b.getString("treatment") ?: s.treatment, b.getInt("scale", s.scale), b.getString("background") ?: s.background,
+                b.getString("label"), b.getString("mono") ?: s.mono, b.getString("monoFile"),
+            )
+            pickingMono = b.getBoolean("pickingMono")
+            b.getStringArrayList("picked")?.let {
+                picked.addAll(it)
+                Store.pendingIcons.addAll(it)
+            }
+        }
         pal = Themes.palette(this)
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         scroll = ScrollView(this).apply { addView(list) }
@@ -62,6 +78,21 @@ class IconEditActivity : Activity() {
         Ui.edgeToEdge(this, scroll, pal)
         scroll.setBackgroundColor(pal.bg)
         build()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putString("source", s.source)
+        outState.putString("file", s.file)
+        outState.putString("shape", s.shape)
+        outState.putString("treatment", s.treatment)
+        outState.putInt("scale", s.scale)
+        outState.putString("background", s.background)
+        outState.putString("label", s.label)
+        outState.putString("mono", s.mono)
+        outState.putString("monoFile", s.monoFile)
+        outState.putBoolean("pickingMono", pickingMono)
+        outState.putStringArrayList("picked", picked)
     }
 
     private fun radios(options: List<Pair<String, String>>, selected: String, horizontalScroll: Boolean, onPick: (String) -> Unit): View {
@@ -190,7 +221,8 @@ class IconEditActivity : Activity() {
                     override fun onTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
                     override fun afterTextChanged(e: Editable?) {
                         val v = e.toString().trim()
-                        val ok = try {
+                        // Only #RRGGBB or #AARRGGBB: color names would parse here but not when drawing.
+                        val ok = v.startsWith("#") && try {
                             Color.parseColor(v)
                             true
                         } catch (_: Exception) {
@@ -281,17 +313,21 @@ class IconEditActivity : Activity() {
         if (requestCode != reqPhoto && requestCode != reqFile) return
         val uri = data?.data ?: return
         if (resultCode != RESULT_OK) return
+        // Claimed before the file exists, so a cleanup running meanwhile leaves it alone.
+        val name = "custom-${System.currentTimeMillis()}.png"
+        picked.add(name)
+        Store.pendingIcons.add(name)
         // ImageDecoder must not run on the main thread.
         Thread {
             val path = try {
                 val src = ImageDecoder.createSource(contentResolver, uri)
                 val bmp = ImageDecoder.decodeBitmap(src) { dec, info, _ ->
                     val m = max(info.size.width, info.size.height)
-                    val k = min(1f, 432f / m)
+                    val k = min(1f, IconRenderer.CUSTOM_MAX_PX.toFloat() / m)
                     dec.setTargetSize((info.size.width * k).roundToInt().coerceAtLeast(1), (info.size.height * k).roundToInt().coerceAtLeast(1))
                     dec.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
                 }
-                IconRenderer.saveCustom(bmp, "custom-${System.currentTimeMillis()}.png")
+                IconRenderer.saveCustom(bmp, name)
             } catch (_: Exception) {
                 null
             }
@@ -300,6 +336,8 @@ class IconEditActivity : Activity() {
     }
 
     private fun usePicked(path: String?) {
+        // Closed while the image was decoding: the next cleanup removes the unused file.
+        if (isDestroyed) return
         if (path == null) {
             Toast.makeText(this, R.string.cant_read_image, Toast.LENGTH_SHORT).show()
             return
@@ -333,6 +371,9 @@ class IconEditActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         // Images picked but never saved aren't in the layout, so this deletes them. Saved ones stay.
-        if (isFinishing) Store.cleanIcons()
+        if (isFinishing) {
+            Store.pendingIcons.removeAll(picked.toSet())
+            Store.cleanIcons()
+        }
     }
 }

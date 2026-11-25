@@ -74,6 +74,14 @@ With Themed icons and "Theme apps without a monochrome icon" on, scroll the draw
 
 When a string is added or changed in `values/strings.xml`, add or change it in `values-es/strings.xml` and `values-de/strings.xml` too. Lint fails the build otherwise. If a native speaker sends corrections, apply them and note it in `changes.md`.
 
+## 4.6. Security checks
+
+1. The build check runs `gradle/actions/wrapper-validation` before anything else. If it fails right after a Dependabot Gradle wrapper bump, rerun the job once, since the action fetches new checksums from gradle.org. If it still fails, DON'T MERGE: `gradle-wrapper.jar` is not a real Gradle release.
+2. In Chrome, open any page, then menu, Add to home screen, Add. Corkboard's own "Add to home screen?" dialog should appear naming Chrome. Cancel adds nothing; Add places the icon.
+3. Export a layout, then import it again. It should restore with a "Layout restored" message. The backup limits (4 MB layout file, 4 MB per image, 64 MB in total, 4096 files) are constants near the bottom of `Store` in `LayoutStore.kt`. Raise them only if a real backup ever hits them.
+4. If the phone has a private space, lock it and open the drawer: none of its apps should be in Personal or Work. Then check the new Android version's notes for changes to `LauncherApps.getProfiles` and `ACCESS_HIDDEN_PROFILES`.
+5. Read the new Android version's behavior changes for anything touching `LauncherApps.PinItemRequest`, `AppWidgetHost` or the storage access framework.
+
 ## 5. Write it down
 
 Add an entry to `changes.md` for anything you changed, in the usual format, even if it is only dependency bumps.

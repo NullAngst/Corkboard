@@ -1,5 +1,34 @@
 # Changes
 
+2026.11.25 - Bug fixes and security hardening
+
+* Fixed: a widget dragged to a new spot turned invisible there until the launcher restarted
+* Fixed: a long-press on a widget could fire twice, buzzing twice and opening the widget's menu over the drag
+* Fixed: an open folder stayed on screen after an app inside it was uninstalled, though the folder itself was gone
+* Fixed: holding an app over another copy of the same app made a folder holding one app twice
+* Fixed: an image picked in Edit icon could be deleted before saving if any app installed or updated meanwhile; edits in progress now also survive the photo picker and rotation
+* Fixed: a custom color could be typed as a name like "red", which then drew as Auto; only #RRGGBB and #AARRGGBB are taken
+* Fixed: a failed automatic backup left a half-written zip that counted toward the backups kept and could push a good one out
+* Fixed: a failing scheduled backup was retried on every return to the home screen; it now waits 30 minutes between tries, and a scheduled backup never starts while one is running
+* Fixed: an unreadable layout.json was silently replaced by an empty layout. It is kept as layout.json.bad, and apps go to the drawer instead of spilling onto the home screen
+* Fixed: long-press menus could run off the screen in landscape; they scroll now
+* Fixed: widget ids from a setup that was cut off stayed allocated forever; they are released at start
+* Fixed: on Android 11+, apps that provide widgets but have no launcher icon were missing from the widget picker when their widget is exported to other apps, and a restored widget spot from one was dropped as if the app were gone
+* Export and import run off the main thread, so a big icon set can't freeze the launcher
+* Drawer search ignores accents ("musica" finds "Música"), and the drawer sorts by the phone's language ("Ärzte" next to "Apps", not after "Zoom")
+* The widget picker loads previews once instead of on every keystroke in its search box
+* Less work per icon: shapes are built once, pixel scans aren't repeated, cache keys are cheaper
+* Security: "Add to home screen" requests from other apps show a confirmation with the shortcut's name, icon and the app asking, as Android expects of launchers. Before, any app in the foreground could add icons without asking
+* Security: backups are read into a scratch folder and checked before anything changes. Size limits per file and in total, file names that try to leave the icons folder are skipped, and damaged or deeply nested layout files are refused instead of crashing
+* Security: layouts are repaired on load: duplicate or runaway ids, items off the grid or on top of each other, two dock icons in one slot, apps with spans
+* Security: custom icon images are sampled down when decoded, so an oversized image in a backup can't crash the launcher on every start, and stored icon names are never used as file paths
+* Security: automatic backup only writes to a folder this phone still has permission for, and restoring a backup keeps this phone's own backup and swipe-down settings
+* Security: every screen has an empty task affinity, so another app can't place its activities in Corkboard's task
+* Security: CI checks gradle-wrapper.jar against Gradle's published checksums, and the checkout no longer leaves the GitHub token on disk while the build runs
+* Spanish and German strings for everything new
+
+Reasons for changes: a full code review and security pass. Checked on an Android 15 emulator with a deliberately broken layout, a 10000 x 10000 icon image, oversized and hostile backup zips, a corrupt layout file, and test apps that request a pinned shortcut and provide a widget.
+
 2026.11.25 - UX polish
 
 * Coming back to the home screen from an app, the dock, icons and widgets now rise, grow and fade in, dock first and then the grid from the bottom row up, instead of appearing all at once

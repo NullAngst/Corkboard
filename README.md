@@ -20,12 +20,12 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 
 - Home screen grid with multiple pages and free placement (default 4 x 6, adjustable from 3 to 6 columns and 4 to 8 rows).
 - Dock: one row under the pages, same on every page.
-- App drawer: swipe up. Alphabetical, search on top, Personal and Work tabs.
+- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs.
 - New apps land on the home screen (toggle, on by default). Uninstalled apps disappear everywhere.
 - Long-press and drag to rearrange. Items in the way slide aside, Pixel-style. Drag to the screen edge to change page.
 - Folders: hold an app over another app for half a second. Rename, reorder, drag out.
 - Widgets from installed apps, placed and resized on the grid. Corkboard ships no widgets of its own.
-- Pinned shortcuts ("Add to home screen" from Chrome) and app shortcuts in the long-press menu.
+- Pinned shortcuts ("Add to home screen" from Chrome, confirmed before they land) and app shortcuts in the long-press menu.
 - Icon shapes: system default, circle, squircle, rounded square, square, teardrop. Per item: shape, custom image, scale, Fill or Fit treatment, background color.
 - Themed icons (Android 13+): each app's monochrome icon tinted to your wallpaper colors, like Pixel Launcher. Off by default.
 - Disk icon cache so cold starts skip re-reading every icon. 25 MB by default, adjustable in settings.
@@ -117,8 +117,12 @@ Lint fails the build if a string is missing from any language, so a new string h
 - **Recents and gesture animations.** On a Pixel, the recents screen and the swipe-up-to-home animation belong to Pixel Launcher. With any third-party launcher set as home, recents keeps working but the home transition is plainer. Lawnchair gets around this only with root (QuickSwitch). Nothing to build here, just expect it. Corkboard plays its own icon entry once that system transition is out of the way, so the app no longer shrinks into a frozen grid, but it can't fly the app back into its icon like Pixel Launcher does; that needs a permission only system apps get.
 - **Swipe down for notifications** uses a hidden Android API (`StatusBarManager.expandNotificationsPanel`). Google can block it in any release. If that happens the gesture quietly does nothing and the setting greys out with "Not supported on this Android version". Swiping down from the very top edge always works.
 - **Widgets** need no permission in the manifest. Android shows its own "Allow Corkboard to create widgets" prompt the first time you add a widget from each app.
-- **Automatic backup.** Under Backup, turn on **Automatic backup** and pick a folder in Android's folder picker. Corkboard gets permission for that one folder only and needs no storage permission. Choose **How often**: after changes (a minute after the last change), daily, weekly or monthly. Daily, weekly and monthly run when you return to the home screen and the last backup is that old, so a phone that sits untouched won't back up until it's used. **Backups to keep** is 1, 3, 5, 10 or 30; older automatic backups (`corkboard-auto-*.zip`) are deleted, and manual exports in the same folder are never touched. If the folder goes away or the permission is revoked, the setting shows the error. Restoring a backup on another phone keeps that phone's own automatic backup settings.
-- **Restoring a backup** brings back the layout and custom icons. Widget IDs belong to the phone, so restored widget spots ask to be set up again with one tap each. Android's own cloud backup is off, so the only backup is the one you export.
+- **Widgets from apps with no launcher icon.** Android 11+ hides apps from each other unless an app declares what it needs to see. Corkboard asks to see apps with a launcher icon and apps whose widget is exported to other apps. A widget-only app that doesn't export its widget stays out of the picker. Seeing it would take `QUERY_ALL_PACKAGES`, which lets Corkboard list every installed package, so that's left out.
+- **Automatic backup.** Under Backup, turn on **Automatic backup** and pick a folder in Android's folder picker. Corkboard gets permission for that one folder only and needs no storage permission. Choose **How often**: after changes (a minute after the last change), daily, weekly or monthly. Daily, weekly and monthly run when you return to the home screen and the last backup is that old, so a phone that sits untouched won't back up until it's used. **Backups to keep** is 1, 3, 5, 10 or 30; older automatic backups (`corkboard-auto-*.zip`) are deleted, and manual exports in the same folder are never touched. It only writes to the folder you picked on this phone, and only while Android still grants access to it. If the folder goes away or the permission is revoked, the setting shows the error and a scheduled backup tries again at most every 30 minutes; pick the folder again to fix it. A backup that fails halfway is deleted, so it never counts toward the ones kept. Restoring a backup on another phone keeps that phone's own automatic backup settings.
+- **Restoring a backup** brings back the layout and custom icons. Widget IDs belong to the phone, so restored widget spots ask to be set up again with one tap each. Android's own cloud backup is off, so the only backup is the one you export. Corkboard reads the whole zip into a scratch folder and checks it before anything on the phone changes: a zip over the size limits or a layout that doesn't parse is refused, file names that try to leave the icons folder are skipped, and a layout with items off the grid or on top of each other is tidied up. A file that isn't a valid backup changes nothing.
+- **Add to home screen from other apps** shows Corkboard's own confirmation with the shortcut's name, icon and the app asking. Android expects launchers to ask; without it any app in the foreground could put icons on your home screen with whatever name and picture it likes.
+- **Private space** (Android 15+) is invisible to Corkboard. Android only lists it for launchers that declare the `ACCESS_HIDDEN_PROFILES` permission, and Corkboard doesn't, so private-space apps never show in the drawer, the Work tab or on the home screen. Supporting it properly is a separate feature.
+- **A damaged layout file** is kept as `layout.json.bad` in the app's private storage instead of being overwritten, and Corkboard starts with an empty home screen and every app in the drawer. Import a backup to get your layout back.
 
 ## Permissions
 
@@ -127,7 +131,7 @@ Lint fails the build if a string is missing from any language, so a new string h
 | `VIBRATE` | Haptics through the system vibrator. Normal permission, granted at install. |
 | `REQUEST_DELETE_PACKAGES` | So Uninstall can open the system uninstall dialog. Normal permission, granted at install. |
 | `EXPAND_STATUS_BAR` | So swipe down can open the notification shade. Normal permission, granted at install. |
-| `<queries>` for MAIN + LAUNCHER | Lets Android 11+ show the launcher every app with a launcher icon, without `QUERY_ALL_PACKAGES`. |
+| `<queries>` for MAIN + LAUNCHER and APPWIDGET_UPDATE | Lets Android 11+ show the launcher every app with a launcher icon and every app that provides a widget, without `QUERY_ALL_PACKAGES`. |
 | HOME + DEFAULT intent filter | Makes it selectable as the home app. |
 
 ## Building
