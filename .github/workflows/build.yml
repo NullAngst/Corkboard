@@ -21,7 +21,7 @@ jobs:
           persist-credentials: false
 
       # gradle-wrapper.jar is a binary in the repo that runs on every build: check it is a real Gradle release.
-      - uses: gradle/actions/wrapper-validation@v5
+      - uses: gradle/actions/wrapper-validation@v6
 
       - uses: actions/setup-java@v6
         with:
@@ -85,7 +85,7 @@ jobs:
           persist-credentials: false
 
       # gradle-wrapper.jar is a binary in the repo that runs on every build: check it is a real Gradle release.
-      - uses: gradle/actions/wrapper-validation@v5
+      - uses: gradle/actions/wrapper-validation@v6
 
       - uses: actions/setup-java@v6
         with:
