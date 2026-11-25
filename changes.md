@@ -1,5 +1,13 @@
 # Changes
 
+2026.11.25 - Long-press fixes
+
+* Long-pressing an app, folder, shortcut or widget opens its menu right away, while the finger is still down, like Pixel Launcher. Let go to use the menu, or keep moving: the menu closes and the drag carries on. Before, the menu only appeared after letting go
+* Same in the drawer and in open folders
+* Fixed: the Rename box looked empty in light mode; its text was white on the light dialog
+
+Reasons for changes: the menu waiting for release felt broken next to Pixel Launcher. The Rename bug turned up while checking it on an Android 15 emulator.
+
 2026.11.25 - New app icon
 
 * New launcher icon: a heavy round C in cream with a copper pin as its full stop, on ink (#15191C). It replaces the tilted verdigris pushpin
