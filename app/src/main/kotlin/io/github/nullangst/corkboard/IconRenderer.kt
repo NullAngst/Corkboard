@@ -227,6 +227,8 @@ object IconRenderer {
         val flat = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val c = Canvas(flat)
         c.drawColor(Color.BLACK)
+        // The area whose border counts as "background" when deciding whether to invert.
+        var edgeRect = Rect(0, 0, size, size)
         if (d is AdaptiveIconDrawable) {
             val ext = (size * 0.25f).roundToInt()
             d.background?.let { drawLayer(c, it, ext, size, 1f) }
@@ -238,7 +240,10 @@ object IconRenderer {
             val k = t / max(content.width(), content.height()).coerceAtLeast(1)
             val w = content.width() * k
             val h = content.height() * k
-            c.drawBitmap(b, content, RectF((size - w) / 2f, (size - h) / 2f, (size + w) / 2f, (size + h) / 2f), paint)
+            val dst = RectF((size - w) / 2f, (size - h) / 2f, (size + w) / 2f, (size + h) / 2f)
+            c.drawBitmap(b, content, dst, paint)
+            edgeRect = Rect(dst.left.roundToInt(), dst.top.roundToInt(), dst.right.roundToInt() - 1, dst.bottom.roundToInt() - 1)
+            edgeRect.intersect(0, 0, size - 1, size - 1)
         }
         val px = pixels(flat)
         val lum = IntArray(px.size)
@@ -254,21 +259,25 @@ object IconRenderer {
         if (hi <= lo) return null
         val range = hi - lo
         for (i in lum.indices) lum[i] = (lum[i] - lo) * 255 / range
-        // Edges stand for the background: top and bottom rows plus left and right columns.
+        // Edges stand for the background: the border of the drawn area.
         var edge = 0L
         var count = 0
-        for (x in 0 until size) {
-            edge += lum[x] + lum[(size - 1) * size + x]
+        for (x in edgeRect.left..edgeRect.right) {
+            edge += lum[edgeRect.top * size + x] + lum[edgeRect.bottom * size + x]
             count += 2
         }
-        for (y in 0 until size) {
-            edge += lum[y * size] + lum[y * size + size - 1]
+        for (y in edgeRect.top..edgeRect.bottom) {
+            edge += lum[y * size + edgeRect.left] + lum[y * size + edgeRect.right]
             count += 2
         }
         val invert = edge / count.toFloat() > 127f
         val out = IntArray(lum.size)
         for (i in lum.indices) {
-            val a = if (invert) 255 - lum[i] else lum[i]
+            val v = (if (invert) 255 - lum[i] else lum[i]) / 255f
+            // Beyond Launcher3's plain stretch: a smoothstep drops faint gradients and baked-in
+            // shadows to nothing and makes the strong shapes solid, so the result reads as a logo.
+            val t = ((v - 0.3f) / 0.4f).coerceIn(0f, 1f)
+            val a = (t * t * (3 - 2 * t) * 255).roundToInt()
             out[i] = (a shl 24) or 0xFFFFFF
         }
         val mask = Bitmap.createBitmap(out, size, size, Bitmap.Config.ARGB_8888)
@@ -287,12 +296,9 @@ object IconRenderer {
      * any throw at all.
      */
     private fun themed(ctx: Context, src: Drawable?, s: IconSettings?, size: Int, user: UserHandle?, colors: Pair<Int, Int>?): Bitmap? {
-        android.util.Log.d("CorkTouch", "themed colors=$colors src=${src?.javaClass?.simpleName} themedSetting=${Store.layout.settings.themedIcons}")
         if (colors == null) return null
         return try {
-            val mask = monoMask(ctx, src, s, size)
-            android.util.Log.d("CorkTouch", "mask=${mask != null}")
-            if (mask == null) return null
+            val mask = monoMask(ctx, src, s, size) ?: return null
             val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val c = Canvas(out)
             val shape = if (s == null || s.shape == "global") Store.layout.settings.shape else s.shape
@@ -301,8 +307,7 @@ object IconRenderer {
             val tint = Paint(paint).apply { colorFilter = BlendModeColorFilter(colors.second, BlendMode.SRC_IN) }
             c.drawBitmap(mask, 0f, 0f, tint)
             badge(ctx, out, user)
-        } catch (t: Throwable) {
-            android.util.Log.w("CorkTouch", "themed failed", t)
+        } catch (_: Throwable) {
             null
         }
     }

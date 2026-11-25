@@ -1250,7 +1250,6 @@ class HomeActivity : Activity() {
     }
 
     private fun openDrawerFromButton() {
-        android.util.Log.d("CorkTouch", "drawer button tapped vis=${drawer.visibility} open=${drawer.isOpen}")
         closeOverlay()
         closeFolder()
         Haptics.play(root, Haptics.DRAWER, Haptics.Fx.THRESHOLD)
@@ -1488,7 +1487,6 @@ class HomeActivity : Activity() {
                     // DOWN arrives here twice (intercept, then onTouchEvent): post the long-press once.
                     removeCallbacks(longPress)
                     if (hit == null) postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
-                    android.util.Log.d("CorkTouch", "down hit=${hit?.javaClass?.simpleName} mode=$mode")
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = ev.x - downX
