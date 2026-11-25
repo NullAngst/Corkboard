@@ -5,14 +5,25 @@
  */
 package io.github.nullangst.corkboard
 
+import android.content.Context
+import android.media.AudioAttributes
 import android.os.Build
+import android.os.VibrationAttributes
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.HapticFeedbackConstants
 import android.view.View
 
 /**
- * Vibration feedback through View.performHapticFeedback: the phone's own tuned effects, no VIBRATE
- * permission, and it follows Android's "Touch feedback" setting. Each moment belongs to a trigger
- * the user can switch off on its own, under a master switch.
+ * Vibration feedback with the phone's predefined effects (click, heavy click, tick, double click),
+ * played through the system vibrator with the "touch" usage, so Android's own Touch feedback and
+ * vibration strength settings still apply. Each moment belongs to a trigger the user can switch off
+ * on its own, under a master switch.
+ *
+ * Earlier builds used View.performHapticFeedback with Android 14's lighter "segment tick" and
+ * "gesture threshold" effects; on a Pixel those can be too faint to notice, which read as haptics
+ * working only some of the time.
  */
 object Haptics {
     const val DRAWER = "drawer"
@@ -26,6 +37,21 @@ object Haptics {
     val triggers = listOf(DRAWER, LIFT, FOLDER, PLACE, REORDER, PAGE, REMOVE)
 
     enum class Fx { LIFT, TICK, LIGHT, CONFIRM, REJECT, THRESHOLD }
+
+    private var vibrator: Vibrator? = null
+
+    fun init(ctx: Context) {
+        if (vibrator != null) return
+        vibrator = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ctx.getSystemService(VibratorManager::class.java)?.defaultVibrator
+            } else {
+                ctx.getSystemService(Vibrator::class.java)
+            }
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     fun name(trigger: String) = when (trigger) {
         DRAWER -> R.string.h_drawer
@@ -42,45 +68,30 @@ object Haptics {
         return s.haptics && trigger !in s.hapticOff
     }
 
-    fun play(v: View?, trigger: String, fx: Fx) {
-        if (v == null || !enabled(trigger)) return
-        try {
-            v.performHapticFeedback(constant(fx))
-        } catch (_: Throwable) {
-        }
+    private fun effect(fx: Fx): Int = when (fx) {
+        Fx.LIFT -> VibrationEffect.EFFECT_HEAVY_CLICK
+        Fx.CONFIRM, Fx.THRESHOLD -> VibrationEffect.EFFECT_CLICK
+        Fx.TICK, Fx.LIGHT -> VibrationEffect.EFFECT_TICK
+        Fx.REJECT -> VibrationEffect.EFFECT_DOUBLE_CLICK
     }
 
-    /** The richest effect this Android version has, falling back to older ones on Android 10 to 13. */
-    private fun constant(fx: Fx): Int = when (fx) {
-        Fx.LIFT -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            HapticFeedbackConstants.DRAG_START
-        } else {
-            HapticFeedbackConstants.LONG_PRESS
-        }
-        Fx.TICK -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            HapticFeedbackConstants.SEGMENT_TICK
-        } else {
-            HapticFeedbackConstants.CLOCK_TICK
-        }
-        Fx.LIGHT -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            HapticFeedbackConstants.SEGMENT_FREQUENT_TICK
-        } else {
-            HapticFeedbackConstants.CLOCK_TICK
-        }
-        Fx.CONFIRM -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            HapticFeedbackConstants.CONFIRM
-        } else {
-            HapticFeedbackConstants.VIRTUAL_KEY
-        }
-        Fx.REJECT -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            HapticFeedbackConstants.REJECT
-        } else {
-            HapticFeedbackConstants.LONG_PRESS
-        }
-        Fx.THRESHOLD -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            HapticFeedbackConstants.GESTURE_THRESHOLD_ACTIVATE
-        } else {
-            HapticFeedbackConstants.CONTEXT_CLICK
+    fun play(v: View?, trigger: String, fx: Fx) {
+        if (!enabled(trigger)) return
+        if (vibrator == null) v?.context?.let { init(it) }
+        val vib = vibrator
+        try {
+            if (vib == null || !vib.hasVibrator()) {
+                v?.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                return
+            }
+            val e = VibrationEffect.createPredefined(effect(fx))
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                vib.vibrate(e, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
+            } else {
+                @Suppress("DEPRECATION")
+                vib.vibrate(e, AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).build())
+            }
+        } catch (_: Throwable) {
         }
     }
 }

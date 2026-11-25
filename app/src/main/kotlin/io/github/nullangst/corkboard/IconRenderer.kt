@@ -136,7 +136,7 @@ object IconRenderer {
         val app = Apps.apps[key] ?: return null
         val s = override ?: Store.layout.icons["app:$key"]
         val themed = themedColors(ctx)
-        val k = "a|$key|${app.version}|${s?.look()}|$size|${Store.layout.settings.shape}|${themed?.let { "${it.first}.${it.second}" }}"
+        val k = "a|$key|${app.version}|${s?.look()}|$size|${Store.layout.settings.shape}|${themedKey(themed)}"
         if (override == null) {
             cache.get(k)?.let { return it }
             DiskIcons.get(ctx, k, key.pkg)?.let {
@@ -152,6 +152,8 @@ object IconRenderer {
         }
         return bmp
     }
+
+    private fun themedKey(c: Pair<Int, Int>?) = c?.let { "${it.first}.${it.second}.${Store.layout.settings.themedGenerate}" }
 
     // ---- Themed (monochrome) icons ----
 
@@ -178,29 +180,144 @@ object IconRenderer {
         }
     }
 
+    fun monoBitmap(s: IconSettings?): Bitmap? {
+        val f = s?.monoFile ?: return null
+        return BitmapFactory.decodeFile(File(Store.filesDir, f).path)
+    }
+
     /**
-     * Draws the app's monochrome layer tinted on a wallpaper-colored shape. Returns null, so the
-     * normal icon is drawn instead, whenever anything is off: themed icons disabled, a custom image
-     * set, no monochrome layer, a layer that draws nothing, or any throw at all.
+     * The mask a themed icon is drawn from, white on transparent, or null to draw the normal icon.
+     * Per app: "auto" uses the app's own monochrome layer, else a generated one if "Theme apps
+     * without a monochrome icon" is on; "generate" always generates; "image" generates from the
+     * user's picked image; "off" never themes. A custom icon image keeps its own look under "auto".
+     */
+    private fun monoMask(ctx: Context, src: Drawable?, s: IconSettings?, size: Int): Bitmap? {
+        val mode = s?.mono ?: "auto"
+        val scale = (s?.scale ?: 100) / 100f
+        when (mode) {
+            "off" -> return null
+            "image" -> return monoBitmap(s)?.let { generateMono(BitmapDrawable(ctx.resources, it), size, scale) }
+            "generate" -> {
+                val base = customBitmap(s)?.let { BitmapDrawable(ctx.resources, it) } ?: src ?: return null
+                return generateMono(base, size, scale)
+            }
+        }
+        if (s?.source == "custom") return null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            (src as? AdaptiveIconDrawable)?.monochrome?.mutate()?.let { mono ->
+                val layer = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+                drawLayer(Canvas(layer), mono, (size * 0.25f).roundToInt(), size, scale)
+                if (visible(layer)) return layer
+            }
+        }
+        if (Store.layout.settings.themedGenerate && src != null) return generateMono(src, size, scale)
+        return null
+    }
+
+    private fun visible(b: Bitmap) = pixels(b).any { it ushr 24 > 16 }
+
+    /**
+     * Makes a monochrome mask from a full-color icon, the way AOSP Launcher3's MonochromeIconFactory
+     * does (Copyright (C) 2022 The Android Open Source Project, Apache License 2.0), rewritten:
+     * flatten the icon over black, take the average of R, G and B as brightness, stretch the
+     * contrast to the full range, and invert if the edges came out bright, so the icon's background
+     * ends up transparent and its logo opaque.
+     */
+    private fun generateMono(d: Drawable, size: Int, scale: Float): Bitmap? {
+        val flat = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = Canvas(flat)
+        c.drawColor(Color.BLACK)
+        if (d is AdaptiveIconDrawable) {
+            val ext = (size * 0.25f).roundToInt()
+            d.background?.let { drawLayer(c, it, ext, size, 1f) }
+            d.foreground?.let { drawLayer(c, it, ext, size, 1f) }
+        } else {
+            val b = toBitmap(d, size)
+            val content = contentBounds(b)
+            val t = size * 0.8f
+            val k = t / max(content.width(), content.height()).coerceAtLeast(1)
+            val w = content.width() * k
+            val h = content.height() * k
+            c.drawBitmap(b, content, RectF((size - w) / 2f, (size - h) / 2f, (size + w) / 2f, (size + h) / 2f), paint)
+        }
+        val px = pixels(flat)
+        val lum = IntArray(px.size)
+        var lo = 255
+        var hi = 0
+        for (i in px.indices) {
+            val p = px[i]
+            val v = (((p shr 16) and 0xFF) + ((p shr 8) and 0xFF) + (p and 0xFF)) / 3
+            lum[i] = v
+            if (v < lo) lo = v
+            if (v > hi) hi = v
+        }
+        if (hi <= lo) return null
+        val range = hi - lo
+        for (i in lum.indices) lum[i] = (lum[i] - lo) * 255 / range
+        // Edges stand for the background: top and bottom rows plus left and right columns.
+        var edge = 0L
+        var count = 0
+        for (x in 0 until size) {
+            edge += lum[x] + lum[(size - 1) * size + x]
+            count += 2
+        }
+        for (y in 0 until size) {
+            edge += lum[y * size] + lum[y * size + size - 1]
+            count += 2
+        }
+        val invert = edge / count.toFloat() > 127f
+        val out = IntArray(lum.size)
+        for (i in lum.indices) {
+            val a = if (invert) 255 - lum[i] else lum[i]
+            out[i] = (a shl 24) or 0xFFFFFF
+        }
+        val mask = Bitmap.createBitmap(out, size, size, Bitmap.Config.ARGB_8888)
+        if (!visible(mask)) return null
+        if (scale == 1f) return mask
+        val scaled = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val sc = Canvas(scaled)
+        sc.scale(scale, scale, size / 2f, size / 2f)
+        sc.drawBitmap(mask, 0f, 0f, paint)
+        return scaled
+    }
+
+    /**
+     * Draws the monochrome mask tinted on a wallpaper-colored shape. Returns null, so the normal
+     * icon is drawn instead, whenever anything is off: themed icons disabled, no usable mask, or
+     * any throw at all.
      */
     private fun themed(ctx: Context, src: Drawable?, s: IconSettings?, size: Int, user: UserHandle?, colors: Pair<Int, Int>?): Bitmap? {
-        if (colors == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || s?.source == "custom") return null
+        if (colors == null) return null
         return try {
-            val mono = (src as? AdaptiveIconDrawable)?.monochrome?.mutate() ?: return null
-            mono.colorFilter = BlendModeColorFilter(colors.second, BlendMode.SRC_IN)
-            val layer = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-            drawLayer(Canvas(layer), mono, (size * 0.25f).roundToInt(), size, (s?.scale ?: 100) / 100f)
-            if (pixels(layer).none { it ushr 24 > 16 }) return null
+            val mask = monoMask(ctx, src, s, size) ?: return null
             val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val c = Canvas(out)
             val shape = if (s == null || s.shape == "global") Store.layout.settings.shape else s.shape
             shapePath(shape, size)?.let { c.clipPath(it) }
             c.drawColor(colors.first)
-            c.drawBitmap(layer, 0f, 0f, paint)
+            val tint = Paint(paint).apply { colorFilter = BlendModeColorFilter(colors.second, BlendMode.SRC_IN) }
+            c.drawBitmap(mask, 0f, 0f, tint)
             badge(ctx, out, user)
         } catch (_: Throwable) {
             null
         }
+    }
+
+    /** The drawer button: a dots grid in the global shape. */
+    fun drawerButton(ctx: Context, size: Int = sizePx(ctx)): Bitmap {
+        val pal = Themes.palette(ctx)
+        val k = "drawer|$size|${Store.layout.settings.shape}|${pal.surface}|${pal.text}"
+        cache.get(k)?.let { return it }
+        val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val c = Canvas(out)
+        shapePath(Store.layout.settings.shape, size)?.let { c.clipPath(it) }
+        c.drawColor(pal.surface)
+        val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.text }
+        val gap = size * 0.18f
+        val r = size * 0.055f
+        for (i in -1..1) for (j in -1..1) c.drawCircle(size / 2f + i * gap, size / 2f + j * gap, r, dot)
+        cache.put(k, out)
+        return out
     }
 
     fun shortcut(ctx: Context, item: ShortcutItem, size: Int = sizePx(ctx), override: IconSettings? = null): Bitmap {
@@ -216,7 +333,9 @@ object IconRenderer {
     fun folder(ctx: Context, f: FolderItem, size: Int = sizePx(ctx), override: IconSettings? = null): Bitmap {
         val s = override ?: Store.layout.icons["item:${f.id}"]
         val pal = Themes.palette(ctx)
-        val k = "f|${f.id}|${f.apps.take(4).joinToString()}|${s?.look()}|$size|${Store.layout.settings.shape}|${pal.panel}"
+        // Each app's own look and version are in the key, so editing an app's icon updates the preview.
+        val apps = f.apps.take(4).joinToString { "$it/${Apps.apps[it]?.version}/${Store.layout.icons["app:$it"]?.look()}" }
+        val k = "f|${f.id}|$apps|${s?.look()}|$size|${Store.layout.settings.shape}|${pal.panel}|${themedKey(themedColors(ctx))}"
         if (override == null) cache.get(k)?.let { return it }
         val bmp = render(ctx, null, s, size, null) { c, sz ->
             c.drawColor(pal.panel)
@@ -245,6 +364,19 @@ object IconRenderer {
 
     // ---- Pipeline ----
 
+    /** A fixed background choice as a color, or null for "auto". */
+    private fun solid(choice: String): Int? = when {
+        choice == "white" -> Color.WHITE
+        choice == "black" -> Color.BLACK
+        choice == "transparent" -> Color.TRANSPARENT
+        choice.startsWith("#") -> try {
+            Color.parseColor(choice)
+        } catch (_: Exception) {
+            null
+        }
+        else -> null
+    }
+
     fun render(
         ctx: Context,
         source: Drawable?,
@@ -261,6 +393,7 @@ object IconRenderer {
         val scale = s.scale / 100f
         val custom = customBitmap(s)
         val src: Drawable? = if (custom != null) BitmapDrawable(ctx.resources, custom) else source
+        val chosenBg = solid(s.background)
 
         when {
             src == null -> {
@@ -271,29 +404,39 @@ object IconRenderer {
                     c.restore()
                 }
             }
-            src is AdaptiveIconDrawable && s.treatment != "fit" -> {
-                // Layers at 150% so the 72dp safe area fills the shape, same as the framework.
+            src is AdaptiveIconDrawable -> {
+                // Background: the app's own layer, or the color picked in Edit icon in its place.
+                // Layers at 150% so the 72dp safe area fills the shape, same as the framework; Fit
+                // draws the foreground at 100% instead, so the logo sits smaller.
                 val ext = (size * 0.25f).roundToInt()
-                src.background?.let { drawLayer(c, it, ext, size, max(scale, 1f)) }
-                src.foreground?.let { drawLayer(c, it, ext, size, scale) }
+                if (chosenBg == null) {
+                    src.background?.let { drawLayer(c, it, ext, size, max(scale, 1f)) }
+                } else if (chosenBg != Color.TRANSPARENT) {
+                    c.drawColor(chosenBg)
+                }
+                src.foreground?.let { drawLayer(c, it, if (s.treatment == "fit") 0 else ext, size, scale) }
             }
             else -> {
                 val bmp = toBitmap(src, size)
+                val px = pixels(bmp)
+                val content = contentBounds(bmp)
                 val fill = when (s.treatment) {
                     "fill" -> true
                     "fit" -> false
-                    else -> isFullBleed(bmp)
+                    else -> isFullBleed(px, size) || isSquarish(px, size, content)
                 }
                 if (fill) {
-                    if (scale < 1f) background(s.background, bmp, Color.TRANSPARENT).let { if (it != 0) c.drawColor(it) }
+                    // Old square icons: crop the transparent margin and stretch to the shape. The
+                    // background only shows where the icon's own rounded corners don't reach.
+                    val bg = chosenBg ?: sampledBackground(bmp) ?: Color.TRANSPARENT
+                    if (bg != Color.TRANSPARENT) c.drawColor(bg)
                     c.save()
                     c.scale(scale, scale, size / 2f, size / 2f)
-                    c.drawBitmap(bmp, null, Rect(0, 0, size, size), paint)
+                    c.drawBitmap(bmp, content, Rect(0, 0, size, size), paint)
                     c.restore()
                 } else {
-                    val bg = background(s.background, bmp, Color.WHITE)
-                    if (bg != 0) c.drawColor(bg)
-                    val content = contentBounds(bmp)
+                    val bg = chosenBg ?: sampledBackground(bmp) ?: Color.WHITE
+                    if (bg != Color.TRANSPARENT) c.drawColor(bg)
                     val target = size * 0.68f * scale
                     val k = target / max(content.width(), content.height()).coerceAtLeast(1)
                     val w = content.width() * k
@@ -330,18 +473,31 @@ object IconRenderer {
     private fun pixels(b: Bitmap) = IntArray(b.width * b.height).also { b.getPixels(it, 0, b.width, 0, 0, b.width, b.height) }
 
     /** A full-bleed square: the outer 2 pixels are at least 95% opaque. */
-    private fun isFullBleed(b: Bitmap): Boolean {
-        val w = b.width
-        val h = b.height
-        val px = pixels(b)
+    private fun isFullBleed(px: IntArray, size: Int): Boolean {
         var total = 0
         var opaque = 0
-        for (y in 0 until h) for (x in 0 until w) {
-            if (x in 2 until w - 2 && y in 2 until h - 2) continue
+        for (y in 0 until size) for (x in 0 until size) {
+            if (x in 2 until size - 2 && y in 2 until size - 2) continue
             total++
-            if (px[y * w + x] ushr 24 >= 242) opaque++
+            if (px[y * size + x] ushr 24 >= 242) opaque++
         }
         return total > 0 && opaque >= total * 0.95
+    }
+
+    /**
+     * A rounded-square icon with transparent corners (My Boy, Note Pad and most pre-2017 icons):
+     * its content is close to square, spans most of the canvas, and is solid inside. A circle
+     * covers about 79% of its square, so circles stay on the Fit path.
+     */
+    private fun isSquarish(px: IntArray, size: Int, content: Rect): Boolean {
+        val w = content.width()
+        val h = content.height()
+        if (w < size * 0.6f || h < size * 0.6f || kotlin.math.abs(w - h) > size * 0.08f) return false
+        var solid = 0
+        for (y in content.top until content.bottom) for (x in content.left until content.right) {
+            if (px[y * size + x] ushr 24 >= 200) solid++
+        }
+        return solid >= w * h * 0.86f
     }
 
     private fun contentBounds(b: Bitmap): Rect {
@@ -363,22 +519,14 @@ object IconRenderer {
     }
 
     /**
-     * The Fit background. "auto" samples the icon's outermost opaque pixels along eight rays from
-     * the edges; if they agree the icon sits on its own color, if not it gets [fallback].
+     * "Auto" background: walks in from the edges along eight rays, steps a few pixels past the first
+     * opaque one to skip anti-aliasing, and returns the average if at least six samples sit close to
+     * their median. Null when the icon has no single edge color.
      */
-    fun background(choice: String, b: Bitmap, fallback: Int): Int {
-        when {
-            choice == "white" -> return Color.WHITE
-            choice == "black" -> return Color.BLACK
-            choice == "transparent" -> return Color.TRANSPARENT
-            choice.startsWith("#") -> return try {
-                Color.parseColor(choice)
-            } catch (_: Exception) {
-                fallback
-            }
-        }
+    private fun sampledBackground(b: Bitmap): Int? {
         val w = b.width
         val h = b.height
+        val inset = (w / 48).coerceAtLeast(2)
         val rays = listOf(
             Triple(0, h / 2, 1 to 0), Triple(w - 1, h / 2, -1 to 0), Triple(w / 2, 0, 0 to 1), Triple(w / 2, h - 1, 0 to -1),
             Triple(0, 0, 1 to 1), Triple(w - 1, 0, -1 to 1), Triple(0, h - 1, 1 to -1), Triple(w - 1, h - 1, -1 to -1),
@@ -388,21 +536,26 @@ object IconRenderer {
             var x = sx
             var y = sy
             while (x in 0 until w && y in 0 until h) {
-                val px = b.getPixel(x, y)
-                if (Color.alpha(px) >= 200) {
-                    found.add(px)
+                if (Color.alpha(b.getPixel(x, y)) >= 200) {
+                    val ix = (x + d.first * inset).coerceIn(0, w - 1)
+                    val iy = (y + d.second * inset).coerceIn(0, h - 1)
+                    found.add(b.getPixel(ix, iy))
                     break
                 }
                 x += d.first
                 y += d.second
             }
         }
-        if (found.size < 6) return fallback
-        val r = found.map { Color.red(it) }
-        val g = found.map { Color.green(it) }
-        val bl = found.map { Color.blue(it) }
-        val agree = listOf(r, g, bl).all { ch -> (ch.maxOrNull() ?: 0) - (ch.minOrNull() ?: 0) <= 28 }
-        return if (agree) Color.rgb(r.average().toInt(), g.average().toInt(), bl.average().toInt()) else fallback
+        if (found.size < 6) return null
+        fun med(f: (Int) -> Int) = found.map(f).sorted()[found.size / 2]
+        val mr = med { Color.red(it) }
+        val mg = med { Color.green(it) }
+        val mb = med { Color.blue(it) }
+        val close = found.filter {
+            kotlin.math.abs(Color.red(it) - mr) + kotlin.math.abs(Color.green(it) - mg) + kotlin.math.abs(Color.blue(it) - mb) <= 60
+        }
+        if (close.size < 6) return null
+        return Color.rgb(close.map { Color.red(it) }.average().toInt(), close.map { Color.green(it) }.average().toInt(), close.map { Color.blue(it) }.average().toInt())
     }
 
     /** The system briefcase badge, drawn on top after the shape is applied. */

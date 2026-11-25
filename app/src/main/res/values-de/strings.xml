@@ -50,8 +50,7 @@
     <string name="e_shape">Form</string>
     <string name="e_treatment">Darstellung</string>
     <string name="e_scale">Skalierung</string>
-    <string name="e_background">Hintergrund (nur Einpassen)</string>
-    <string name="e_themed_note">Designbasierte Symbole sind an. Ein eigenes Bild schaltet das Design für dieses Symbol ab.</string>
+    <string name="e_background">Hintergrund</string>
     <string name="t_auto">Automatisch</string>
     <string name="t_fill">Füllen</string>
     <string name="t_fit">Einpassen</string>
@@ -160,4 +159,15 @@
     <string name="b_now">Jetzt sichern</string>
     <string name="b_saved">Sicherung gespeichert</string>
     <string name="b_save_failed">Sicherung fehlgeschlagen</string>
+    <string name="search_widgets">Widgets suchen</string>
+    <string name="s_drawer_button">App-Übersicht über eine Schaltfläche öffnen</string>
+    <string name="s_drawer_button_sub">Fügt dem Dock eine Apps-Schaltfläche hinzu, die sich wie jedes Symbol verschieben lässt. Nach oben wischen öffnet die Übersicht dann nicht mehr</string>
+    <string name="s_themed_generate">Auch Apps ohne einfarbiges Symbol einfärben</string>
+    <string name="s_themed_generate_sub">Erstellt eines aus dem normalen Symbol, wie Pixel Launcher. Bei bunten, detailreichen Symbolen schwankt das Ergebnis</string>
+    <string name="e_themed">Designbasiertes Aussehen</string>
+    <string name="e_themed_off">Schalte Designbasierte Symbole in den Launcher-Einstellungen ein, um das zu sehen</string>
+    <string name="e_mono_generate">Aus Symbol erzeugen</string>
+    <string name="e_mono_image">Eigenes Bild</string>
+    <string name="e_mono_choose">Bild auswählen</string>
+    <string name="e_mono_help">Automatisch nutzt das einfarbige Symbol der App oder ein erzeugtes, wenn diese Einstellung an ist. Eigene Bilder klappen am besten als schlichtes Logo auf einfarbigem Hintergrund; daraus wird eine einfarbige Form, die eingefärbt wird.</string>
 </resources>

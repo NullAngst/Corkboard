@@ -3,6 +3,8 @@
 
     <!-- So Uninstall can open the system uninstall dialog. Normal permission. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <!-- Haptics through the system vibrator. Normal permission, granted at install. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- So swipe down can open the notification shade. Normal permission. -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
 
