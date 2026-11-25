@@ -227,12 +227,13 @@ object IconRenderer {
         val flat = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val c = Canvas(flat)
         c.drawColor(Color.BLACK)
-        // The area whose border counts as "background" when deciding whether to invert.
-        var edgeRect = Rect(0, 0, size, size)
+        // Alpha of what was drawn, so the edge scan can skip transparent margins around old icons.
+        val alpha: IntArray
         if (d is AdaptiveIconDrawable) {
             val ext = (size * 0.25f).roundToInt()
             d.background?.let { drawLayer(c, it, ext, size, 1f) }
             d.foreground?.let { drawLayer(c, it, ext, size, 1f) }
+            alpha = IntArray(size * size) { 255 }
         } else {
             val b = toBitmap(d, size)
             val content = contentBounds(b)
@@ -242,8 +243,9 @@ object IconRenderer {
             val h = content.height() * k
             val dst = RectF((size - w) / 2f, (size - h) / 2f, (size + w) / 2f, (size + h) / 2f)
             c.drawBitmap(b, content, dst, paint)
-            edgeRect = Rect(dst.left.roundToInt(), dst.top.roundToInt(), dst.right.roundToInt() - 1, dst.bottom.roundToInt() - 1)
-            edgeRect.intersect(0, 0, size - 1, size - 1)
+            val clear = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            Canvas(clear).drawBitmap(b, content, dst, paint)
+            alpha = pixels(clear).map { it ushr 24 }.toIntArray()
         }
         val px = pixels(flat)
         val lum = IntArray(px.size)
@@ -259,17 +261,31 @@ object IconRenderer {
         if (hi <= lo) return null
         val range = hi - lo
         for (i in lum.indices) lum[i] = (lum[i] - lo) * 255 / range
-        // Edges stand for the background: the border of the drawn area.
+        // The background is whatever sits at the icon's outer edge: from every side, walk inward to
+        // the first solid pixel and average what is there.
         var edge = 0L
         var count = 0
-        for (x in edgeRect.left..edgeRect.right) {
-            edge += lum[edgeRect.top * size + x] + lum[edgeRect.bottom * size + x]
-            count += 2
+        fun walk(x0: Int, y0: Int, dx: Int, dy: Int) {
+            var x = x0
+            var y = y0
+            while (x in 0 until size && y in 0 until size) {
+                if (alpha[y * size + x] >= 200) {
+                    edge += lum[y * size + x]
+                    count++
+                    return
+                }
+                x += dx
+                y += dy
+            }
         }
-        for (y in edgeRect.top..edgeRect.bottom) {
-            edge += lum[y * size + edgeRect.left] + lum[y * size + edgeRect.right]
-            count += 2
+        val step = (size / 32).coerceAtLeast(1)
+        for (i in 0 until size step step) {
+            walk(i, 0, 0, 1)
+            walk(i, size - 1, 0, -1)
+            walk(0, i, 1, 0)
+            walk(size - 1, i, -1, 0)
         }
+        if (count == 0) return null
         val invert = edge / count.toFloat() > 127f
         val out = IntArray(lum.size)
         for (i in lum.indices) {
