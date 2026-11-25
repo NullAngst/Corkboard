@@ -59,7 +59,6 @@ if themed:
 print(json.dumps({"version": 1, "nextId": 200, "settings": {"shape": "system", "drawerButton": True, "themedIcons": themed, "themedGenerate": True},
                   "pages": [page], "dock": dock, "seen": [f"{c}#0" for c in allc], "hidden": [], "icons": icons}))
 PY
-  adb shell am force-stop "$pkg"
   adb push /tmp/layout.json /data/local/tmp/l.json >/dev/null
   for f in a:legacy-square b:legacy-circle c:legacy-logo d:mono-logo; do
     adb push ".github/devtest/${f#*:}.png" "/data/local/tmp/test-${f%%:*}.png" >/dev/null
@@ -67,6 +66,9 @@ PY
   adb shell "chmod 644 /data/local/tmp/*.png /data/local/tmp/l.json; run-as $pkg sh -c 'mkdir -p files/icons && rm -rf cache/icons'"
   for x in a b c d; do adb shell "cat /data/local/tmp/test-$x.png | run-as $pkg sh -c 'cat > files/icons/test-$x.png'"; done
   adb shell "cat /data/local/tmp/l.json | run-as $pkg sh -c 'cat > files/layout.json'"
+  # Home apps are relaunched the moment they're stopped, so stop only after the new files are in place.
+  adb shell am force-stop "$pkg"
+  sleep 2
   adb shell input keyevent KEYCODE_HOME
   sleep 6
   adb shell input keyevent KEYCODE_HOME
