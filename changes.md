@@ -1,5 +1,13 @@
 # Changes
 
+2026.11.25 - UX polish
+
+* Coming back to the home screen from an app, the dock, icons and widgets now rise, grow and fade in, dock first and then the grid from the bottom row up, instead of appearing all at once
+* The entry waits for Android's own close transition (up to 220 ms) so it plays on screen rather than under the closing app
+* Skipped after unlocking, with a folder, menu or the drawer open, and when Android's "Remove animations" is on; Android's animation scale applies
+
+Reasons for changes: returning home looked abrupt next to the unlock and recents transitions. Timing checked on an Android 15 emulator against the system's transition-finished callback.
+
 2026.11.25 - Icon and UX fixes
 
 * Fixed: old rounded-square icons (My Boy, My OldBoy, Note Pad) were shrunk onto a white circle; Auto now crops their transparent corners and fills the shape

@@ -38,6 +38,7 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 - Haptics, with a master switch and a switch per moment.
 - Drag an icon to the top of the screen to Remove it, or Uninstall the app.
 - Home screen stays upright unless you allow rotation.
+- Coming back from an app, the dock and icons rise and fade in, bottom rows first. Follows Android's animation scale, and skipped when "Remove animations" is on.
 - Swipe down anywhere on the home screen for the notification shade.
 
 Left out on purpose: a Google feed page, notification dots, icon packs, Private space, double-tap to lock.
@@ -113,7 +114,7 @@ Lint fails the build if a string is missing from any language, so a new string h
 
 ## Things to know
 
-- **Recents and gesture animations.** On a Pixel, the recents screen and the swipe-up-to-home animation belong to Pixel Launcher. With any third-party launcher set as home, recents keeps working but the home transition is plainer. Lawnchair gets around this only with root (QuickSwitch). Nothing to build here, just expect it.
+- **Recents and gesture animations.** On a Pixel, the recents screen and the swipe-up-to-home animation belong to Pixel Launcher. With any third-party launcher set as home, recents keeps working but the home transition is plainer. Lawnchair gets around this only with root (QuickSwitch). Nothing to build here, just expect it. Corkboard plays its own icon entry once that system transition is out of the way, so the app no longer shrinks into a frozen grid, but it can't fly the app back into its icon like Pixel Launcher does; that needs a permission only system apps get.
 - **Swipe down for notifications** uses a hidden Android API (`StatusBarManager.expandNotificationsPanel`). Google can block it in any release. If that happens the gesture quietly does nothing and the setting greys out with "Not supported on this Android version". Swiping down from the very top edge always works.
 - **Widgets** need no permission in the manifest. Android shows its own "Allow Corkboard to create widgets" prompt the first time you add a widget from each app.
 - **Automatic backup.** Under Backup, turn on **Automatic backup** and pick a folder in Android's folder picker. Corkboard gets permission for that one folder only and needs no storage permission. Choose **How often**: after changes (a minute after the last change), daily, weekly or monthly. Daily, weekly and monthly run when you return to the home screen and the last backup is that old, so a phone that sits untouched won't back up until it's used. **Backups to keep** is 1, 3, 5, 10 or 30; older automatic backups (`corkboard-auto-*.zip`) are deleted, and manual exports in the same folder are never touched. If the folder goes away or the permission is revoked, the setting shows the error. Restoring a backup on another phone keeps that phone's own automatic backup settings.
