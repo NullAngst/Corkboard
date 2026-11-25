@@ -263,6 +263,10 @@ class SettingsActivity : Activity() {
         })
 
         add(Ui.header(this, pal, str(R.string.s_drawer)))
+        add(Ui.switchRow(this, pal, str(R.string.s_drawer_button), s.drawerButton, str(R.string.s_drawer_button_sub)) {
+            Store.layout.setDrawerButton(it)
+            changed()
+        })
         add(Ui.switchRow(this, pal, str(R.string.s_drawer_keyboard), s.drawerKeyboard) {
             s.drawerKeyboard = it
             changed()
@@ -311,7 +315,14 @@ class SettingsActivity : Activity() {
         ) {
             s.themedIcons = it
             changed(true)
+            build()
         })
+        if (s.themedIcons && IconRenderer.themedSupported) {
+            add(Ui.switchRow(this, pal, str(R.string.s_themed_generate), s.themedGenerate, str(R.string.s_themed_generate_sub)) {
+                s.themedGenerate = it
+                changed(true)
+            }.apply { setPadding(Ui.dp(context, 40f), paddingTop, paddingRight, paddingBottom) })
+        }
         add(Ui.row(this, pal, str(R.string.s_cache_size), cacheSummary()) {
             val sizes = listOf(0, 10, 25, 50, 100, 200, 500)
             val names = sizes.map { if (it == 0) str(R.string.s_cache_off) else getString(R.string.s_cache_mb, it) }

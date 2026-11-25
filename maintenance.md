@@ -57,10 +57,14 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
 
 ## 4.2. Haptics, rotation, drag-to-remove, automatic backup
 
-1. Haptics: with Vibration feedback on, check each moment buzzes (open the drawer, lift an icon, make a folder, place an icon, push icons aside, flip a page while dragging, hover Remove). Turn one switch off and confirm only that moment goes quiet. Read the new Android version's notes for changes to `HapticFeedbackConstants`.
+1. Haptics: with Vibration feedback on, check each moment buzzes. Over USB, `adb shell dumpsys vibrator_manager` lists recent vibrations; Corkboard's should show as `finished`, not `cancelled_superseded`. Check each moment buzzes (open the drawer, lift an icon, make a folder, place an icon, push icons aside, flip a page while dragging, hover Remove). Turn one switch off and confirm only that moment goes quiet. Read the new Android version's notes for changes to `HapticFeedbackConstants`.
 2. Rotation: turn the phone sideways on the home screen; it should stay upright. Turn on Allow home screen rotation and check it follows.
 3. Drag an app to Remove and to Uninstall. Remove takes it off the home screen; Uninstall opens the system dialog and the icon returns until the app is gone.
 4. Automatic backup: open the backup folder and confirm the newest `corkboard-auto-*.zip` is recent and that no more than the chosen number are there. Tap Back up now once. If the status shows an error, pick the folder again.
+
+## 4.3. Themed and generated icons
+
+With Themed icons and "Theme apps without a monochrome icon" on, scroll the drawer and look for generated icons that came out as a solid blob or an inverted plate. The generator lives in `generateMono` in `IconRenderer.kt`; the contrast curve (0.3 to 0.7) and the white backdrop for old icons are the two knobs. Compare against Pixel Launcher on the same apps if one is at hand.
 
 ## 4.5. Translations
 

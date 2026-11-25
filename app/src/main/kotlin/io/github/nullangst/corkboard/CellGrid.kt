@@ -321,6 +321,11 @@ class IconView(ctx: Context) : View(ctx) {
             animate().scaleX(if (value) 1.12f else 1f).scaleY(if (value) 1.12f else 1f).setDuration(120).start()
         }
 
+    init {
+        // Corkboard plays its own lift haptic; the framework's long-press buzz would cut it off.
+        isHapticFeedbackEnabled = false
+    }
+
     /** Where the last touch went down, for the drag shadow's touch point. */
     var downX = 0f
     var downY = 0f

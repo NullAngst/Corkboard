@@ -45,6 +45,9 @@ class AppItem(id: Long, val key: AppKey) : Item(id)
 class FolderItem(id: Long, var name: String, val apps: MutableList<AppKey>) : Item(id)
 class ShortcutItem(id: Long, val pkg: String, val shortcutId: String, val user: Long, var label: String) : Item(id)
 
+/** The app drawer button, when the drawer opens from a button instead of a swipe. */
+class DrawerButtonItem(id: Long) : Item(id)
+
 /** widgetId is -1 for a restored widget that still needs to be set up again. */
 class WidgetItem(id: Long, var widgetId: Int, var provider: ComponentName?, var user: Long) : Item(id)
 
@@ -56,13 +59,16 @@ class IconSettings(
     var scale: Int = 100,
     var background: String = "auto",
     var label: String? = null,
+    /** Themed look: "auto", "generate", "image" (from monoFile) or "off". */
+    var mono: String = "auto",
+    var monoFile: String? = null,
 ) {
-    fun copy() = IconSettings(source, file, shape, treatment, scale, background, label)
+    fun copy() = IconSettings(source, file, shape, treatment, scale, background, label, mono, monoFile)
 
     fun isDefault() = source == "original" && shape == "global" && treatment == "auto" &&
-        scale == 100 && background == "auto" && label == null
+        scale == 100 && background == "auto" && label == null && mono == "auto" && monoFile == null
 
-    fun look() = "$source|$file|$shape|$treatment|$scale|$background"
+    fun look() = "$source|$file|$shape|$treatment|$scale|$background|$mono|$monoFile"
 }
 
 class Settings {
@@ -77,6 +83,12 @@ class Settings {
     var theme = "system"
     var swipeDown = true
     var themedIcons = false
+
+    /** With themed icons on, apps without a monochrome layer get one generated, like Pixel Launcher. */
+    var themedGenerate = true
+
+    /** The drawer opens from a button item instead of swiping up. */
+    var drawerButton = false
 
     /** Disk icon cache size in MB. 0 turns it off. */
     var diskCacheMb = 25
@@ -222,6 +234,28 @@ class Layout {
         for (it in misfits) placeFirstFree(it)
     }
 
+    /** Puts the drawer button in the dock (middle slot if free) or on the home screen, or removes it. */
+    fun setDrawerButton(on: Boolean) {
+        settings.drawerButton = on
+        val existing = allItems().filterIsInstance<DrawerButtonItem>().toList()
+        if (!on) {
+            existing.forEach { remove(it) }
+            return
+        }
+        if (existing.isNotEmpty()) return
+        val item = DrawerButtonItem(newId())
+        val used = dock.map { it.x }.toSet()
+        val mid = settings.columns / 2
+        val slot = if (mid !in used) mid else firstFreeDockSlot()
+        if (slot != null) {
+            item.x = slot
+            item.y = 0
+            dock.add(item)
+        } else {
+            placeFirstFree(item)
+        }
+    }
+
     fun pruneEmptyPages(keep: Int): Int {
         var current = keep
         for (i in pages.indices.reversed()) {
@@ -303,7 +337,7 @@ object Store {
 
     /** Deletes custom icon files nothing points at any more. */
     fun cleanIcons() {
-        val used = layout.icons.values.mapNotNull { it.file?.substringAfterLast('/') }.toSet()
+        val used = layout.icons.values.flatMap { listOfNotNull(it.file, it.monoFile) }.map { it.substringAfterLast('/') }.toSet()
         iconsDir.listFiles()?.forEach { if (it.name !in used) it.delete() }
     }
 
@@ -335,6 +369,7 @@ object Store {
                 put("user", it.user)
                 put("label", it.label)
             }
+            is DrawerButtonItem -> put("type", "drawer")
             is WidgetItem -> {
                 put("type", "widget")
                 put("widgetId", it.widgetId)
@@ -362,6 +397,7 @@ object Store {
             "shortcut" -> ShortcutItem(
                 id, o.optString("package"), o.optString("shortcutId"), o.optLong("user", 0), o.optString("label"),
             )
+            "drawer" -> DrawerButtonItem(id)
             "widget" -> WidgetItem(
                 id, o.optInt("widgetId", -1),
                 ComponentName.unflattenFromString(o.optString("provider")), o.optLong("user", 0),
@@ -392,6 +428,8 @@ object Store {
                 put("theme", s.theme)
                 put("swipeDown", s.swipeDown)
                 put("themedIcons", s.themedIcons)
+                put("themedGenerate", s.themedGenerate)
+                put("drawerButton", s.drawerButton)
                 put("diskCacheMb", s.diskCacheMb)
                 put("allowRotation", s.allowRotation)
                 put("haptics", s.haptics)
@@ -420,6 +458,8 @@ object Store {
                         put("scale", v.scale)
                         put("background", v.background)
                         v.label?.let { put("label", it) }
+                        put("mono", v.mono)
+                        v.monoFile?.let { put("monoFile", it) }
                     })
                 }
             })
@@ -442,6 +482,8 @@ object Store {
             s.theme = j.optString("theme", "system")
             s.swipeDown = j.optBoolean("swipeDown", true)
             s.themedIcons = j.optBoolean("themedIcons", false)
+            s.themedGenerate = j.optBoolean("themedGenerate", true)
+            s.drawerButton = j.optBoolean("drawerButton", false)
             s.diskCacheMb = j.optInt("diskCacheMb", 25).coerceIn(0, 2000)
             s.allowRotation = j.optBoolean("allowRotation", false)
             s.haptics = j.optBoolean("haptics", true)
@@ -486,6 +528,8 @@ object Store {
                     j.optInt("scale", 100).coerceIn(50, 150),
                     j.optString("background", "auto"),
                     if (j.has("label")) j.optString("label") else null,
+                    j.optString("mono", "auto"),
+                    if (j.has("monoFile")) j.optString("monoFile") else null,
                 )
             }
         }

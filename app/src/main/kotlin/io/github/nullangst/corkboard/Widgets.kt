@@ -23,12 +23,15 @@ import android.graphics.RectF
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -58,6 +61,10 @@ class WidgetFrame(ctx: Context, var item: WidgetItem) : FrameLayout(ctx) {
     private val longPress = Runnable {
         fired = true
         onLongPress?.invoke(this)
+    }
+
+    init {
+        isHapticFeedbackEnabled = false
     }
 
     private fun track(ev: MotionEvent) {
@@ -335,80 +342,111 @@ class Widgets(private val act: HomeActivity) {
                 emptyList()
             }
         }.filter { it.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_HIDE_FROM_PICKER == 0 }
-        val groups = providers.groupBy { it.provider.packageName to Apps.serial(it.profile) }
         fun appLabel(pkg: String, serial: Long) =
             Apps.apps.values.firstOrNull { it.key.pkg == pkg && it.key.user == serial }?.label ?: pkg
-
-        val list = LinearLayout(act).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding((16 * d).toInt(), (8 * d).toInt(), (16 * d).toInt(), (24 * d).toInt())
-        }
-        list.addView(TextView(act).apply {
-            text = act.getString(R.string.widgets)
-            textSize = 22f
-            setTextColor(pal.text)
-            setPadding(0, (8 * d).toInt(), 0, (8 * d).toInt())
-        })
-        if (groups.isEmpty()) list.addView(TextView(act).apply {
-            text = act.getString(R.string.no_widgets)
-            setTextColor(pal.textDim)
-        })
+        val labels = providers.associateWith { it.loadLabel(act.packageManager)?.toString().orEmpty() }
         val cellW = act.pageCellW()
         val cellH = act.pageCellH()
         val cols = Store.layout.settings.columns
         val rows = Store.layout.settings.rows
-        for ((k, infos) in groups.entries.sortedBy { appLabel(it.key.first, it.key.second).lowercase() }) {
-            val work = Apps.isWork(k.second)
-            list.addView(TextView(act).apply {
-                text = appLabel(k.first, k.second).let { if (work) act.getString(R.string.work_suffix, it) else it }
-                textSize = 16f
-                setTextColor(pal.accent)
-                setPadding(0, (16 * d).toInt(), 0, (6 * d).toInt())
+
+        val list = LinearLayout(act).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((16 * d).toInt(), 0, (16 * d).toInt(), (24 * d).toInt())
+        }
+
+        fun fill(query: String) {
+            list.removeAllViews()
+            val q = query.trim().lowercase()
+            val shown = providers.filter { p ->
+                q.isEmpty() || labels[p].orEmpty().lowercase().contains(q) ||
+                    appLabel(p.provider.packageName, Apps.serial(p.profile)).lowercase().contains(q)
+            }
+            val groups = shown.groupBy { it.provider.packageName to Apps.serial(it.profile) }
+            if (groups.isEmpty()) list.addView(TextView(act).apply {
+                text = act.getString(R.string.no_widgets)
+                setTextColor(pal.textDim)
+                setPadding(0, (16 * d).toInt(), 0, 0)
             })
-            for (info in infos) {
-                val s = span(info, cellW, cellH, cols, rows)
-                val row = LinearLayout(act).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    background = pal.card(act, pal.surface, 16f)
-                    setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
-                }
-                val preview = ImageView(act).apply {
-                    adjustViewBounds = true
-                    maxHeight = (110 * d).toInt()
-                    maxWidth = (150 * d).toInt()
-                    setImageDrawable(
-                        try {
-                            info.loadPreviewImage(act, 0) ?: info.loadIcon(act, 0)
-                        } catch (_: Exception) {
-                            null
-                        },
-                    )
-                }
-                row.addView(preview, LinearLayout.LayoutParams((150 * d).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT))
-                row.addView(TextView(act).apply {
-                    text = act.getString(R.string.widget_size, info.loadLabel(act.packageManager), s.x, s.y)
-                    setTextColor(pal.text)
-                    setPadding((12 * d).toInt(), 0, 0, 0)
-                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-                row.setOnClickListener {
-                    act.closeOverlay()
-                    addFirstFree(info, cellW, cellH)
-                }
-                row.setOnLongClickListener { v ->
-                    act.startNewWidgetDrag(v, info, s.x, s.y)
-                    true
-                }
-                list.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                    bottomMargin = (8 * d).toInt()
+            for ((k, infos) in groups.entries.sortedBy { appLabel(it.key.first, it.key.second).lowercase() }) {
+                val work = Apps.isWork(k.second)
+                list.addView(TextView(act).apply {
+                    text = appLabel(k.first, k.second).let { if (work) act.getString(R.string.work_suffix, it) else it }
+                    textSize = 16f
+                    setTextColor(pal.accent)
+                    setPadding(0, (16 * d).toInt(), 0, (6 * d).toInt())
                 })
+                for (info in infos) {
+                    val sp = span(info, cellW, cellH, cols, rows)
+                    val row = LinearLayout(act).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                        background = pal.card(act, pal.surface, 16f)
+                        setPadding((10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt(), (10 * d).toInt())
+                    }
+                    val preview = ImageView(act).apply {
+                        adjustViewBounds = true
+                        maxHeight = (110 * d).toInt()
+                        maxWidth = (150 * d).toInt()
+                        setImageDrawable(
+                            try {
+                                info.loadPreviewImage(act, 0) ?: info.loadIcon(act, 0)
+                            } catch (_: Exception) {
+                                null
+                            },
+                        )
+                    }
+                    row.addView(preview, LinearLayout.LayoutParams((150 * d).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT))
+                    row.addView(TextView(act).apply {
+                        text = act.getString(R.string.widget_size, labels[info], sp.x, sp.y)
+                        setTextColor(pal.text)
+                        setPadding((12 * d).toInt(), 0, 0, 0)
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    row.setOnClickListener {
+                        act.closeOverlay()
+                        addFirstFree(info, cellW, cellH)
+                    }
+                    row.setOnLongClickListener { v ->
+                        act.startNewWidgetDrag(v, info, sp.x, sp.y)
+                        true
+                    }
+                    list.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                        bottomMargin = (8 * d).toInt()
+                    })
+                }
             }
         }
-        val scroll = ScrollView(act).apply {
-            addView(list)
-            setBackgroundColor(pal.bg)
+
+        val search = EditText(act).apply {
+            hint = act.getString(R.string.search_widgets)
+            isSingleLine = true
+            setTextColor(pal.text)
+            setHintTextColor(pal.textDim)
+            background = pal.card(act, pal.surface, 24f)
+            setPadding((18 * d).toInt(), 0, (18 * d).toInt(), 0)
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(t: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun afterTextChanged(e: Editable?) = fill(e?.toString().orEmpty())
+            })
         }
-        act.showOverlay(scroll, full = true)
+        val column = LinearLayout(act).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(pal.bg)
+            isClickable = true
+        }
+        column.addView(TextView(act).apply {
+            text = act.getString(R.string.widgets)
+            textSize = 22f
+            setTextColor(pal.text)
+            setPadding((16 * d).toInt(), (16 * d).toInt(), (16 * d).toInt(), (8 * d).toInt())
+        })
+        column.addView(search, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (48 * d).toInt()).apply {
+            setMargins((16 * d).toInt(), 0, (16 * d).toInt(), (8 * d).toInt())
+        })
+        column.addView(ScrollView(act).apply { addView(list) }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        fill("")
+        act.showOverlay(column, full = true)
     }
 
     // ---- Resize ----

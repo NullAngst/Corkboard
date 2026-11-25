@@ -50,8 +50,7 @@
     <string name="e_shape">Forma</string>
     <string name="e_treatment">Tratamiento</string>
     <string name="e_scale">Escala</string>
-    <string name="e_background">Fondo (solo Ajustar)</string>
-    <string name="e_themed_note">Los iconos temáticos están activados. Una imagen personalizada desactiva el tema para este icono.</string>
+    <string name="e_background">Fondo</string>
     <string name="t_auto">Automático</string>
     <string name="t_fill">Rellenar</string>
     <string name="t_fit">Ajustar</string>
@@ -160,4 +159,15 @@
     <string name="b_now">Hacer copia ahora</string>
     <string name="b_saved">Copia guardada</string>
     <string name="b_save_failed">La copia falló</string>
+    <string name="search_widgets">Buscar widgets</string>
+    <string name="s_drawer_button">Abrir el cajón con un botón</string>
+    <string name="s_drawer_button_sub">Añade un botón Aplicaciones al dock que puedes mover como cualquier icono. Deslizar hacia arriba ya no abre el cajón</string>
+    <string name="s_themed_generate">Aplicar tema a apps sin icono monocromo</string>
+    <string name="s_themed_generate_sub">Crea uno a partir del icono normal, como Pixel Launcher. El resultado varía con iconos muy coloridos</string>
+    <string name="e_themed">Aspecto temático</string>
+    <string name="e_themed_off">Activa Iconos temáticos en los ajustes del launcher para verlo</string>
+    <string name="e_mono_generate">Generar desde el icono</string>
+    <string name="e_mono_image">Tu imagen</string>
+    <string name="e_mono_choose">Elegir imagen</string>
+    <string name="e_mono_help">Automático usa el icono monocromo de la app, o uno generado si ese ajuste está activado. Tu imagen funciona mejor como un logo sencillo sobre un fondo liso; se convierte en una forma de un solo color y se tiñe.</string>
 </resources>

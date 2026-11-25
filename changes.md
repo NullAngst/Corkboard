@@ -1,5 +1,22 @@
 # Changes
 
+2026.11.25 - Icon and UX fixes
+
+* Fixed: old rounded-square icons (My Boy, My OldBoy, Note Pad) were shrunk onto a white circle; Auto now crops their transparent corners and fills the shape
+* Fixed: Auto's background sampling only applies to icons on a solid plate, so open logos no longer vanish into their own edge color
+* Fixed: Edit icon's Background did nothing on adaptive icons with a white plate (Total Commander); it now replaces the background layer, except for apps that draw their logo in that layer (Chrome)
+* Fixed: folder previews didn't update after editing an app's icon
+* Fixed: dragging a widget to the top row could drop it on Remove; the Remove bar now has its own band above the grid, and items land where they are drawn, not under the finger
+* Fixed: haptics only working sometimes; Android's own long-press buzz cut Corkboard's off, the empty-space long-press fired twice, and the Android 14 tick effects were too faint. Haptics now use the vibrator's click, heavy click, tick and double click effects
+* Generated monochrome icons for apps without one (PayPal and others), on by default with themed icons, with a contrast curve and Pixel-style white backdrop for old icons
+* Per-app Themed look in Edit icon: Auto, Generate from icon, Your image, Off
+* Search box in the widget picker
+* Optional Apps button in the dock instead of swipe up to open the drawer
+* VIBRATE permission added for haptics
+* Spanish and German strings for everything new
+
+Reasons for changes: bug reports and requests from real-device use, checked on an Android 15 emulator over adb, including the vibrator's own log of what played.
+
 2026.11.24 - UX additions
 
 * Haptics through Android's built-in effects: master switch plus a switch per moment (drawer, lift, folder, place, reorder, page flip, Remove and Uninstall)

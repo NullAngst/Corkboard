@@ -52,8 +52,7 @@
     <string name="e_shape">Shape</string>
     <string name="e_treatment">Treatment</string>
     <string name="e_scale">Scale</string>
-    <string name="e_background">Background (Fit only)</string>
-    <string name="e_themed_note">Themed icons are on. A custom image turns theming off for this icon.</string>
+    <string name="e_background">Background</string>
     <string name="t_auto">Auto</string>
     <string name="t_fill">Fill</string>
     <string name="t_fit">Fit</string>
@@ -162,4 +161,15 @@
     <string name="b_now">Back up now</string>
     <string name="b_saved">Backup saved</string>
     <string name="b_save_failed">Backup failed</string>
+    <string name="search_widgets">Search widgets</string>
+    <string name="s_drawer_button">Open the drawer with a button</string>
+    <string name="s_drawer_button_sub">Adds an Apps button to the dock you can move like any icon. Swipe up no longer opens the drawer</string>
+    <string name="s_themed_generate">Theme apps without a monochrome icon</string>
+    <string name="s_themed_generate_sub">Makes one from the app\'s normal icon, like Pixel Launcher. Results vary with busy, colorful icons</string>
+    <string name="e_themed">Themed look</string>
+    <string name="e_themed_off">Turn on Themed icons in Launcher settings to see this</string>
+    <string name="e_mono_generate">Generate from icon</string>
+    <string name="e_mono_image">Your image</string>
+    <string name="e_mono_choose">Choose image</string>
+    <string name="e_mono_help">Auto uses the app\'s own monochrome icon, or a generated one if that setting is on. Your image works best as a plain logo on a plain background; it is turned into a single-color shape and tinted.</string>
 </resources>

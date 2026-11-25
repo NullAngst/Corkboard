@@ -52,6 +52,9 @@ import kotlin.math.roundToInt
 
 const val REQ_ROLE = 21
 
+/** Height of the empty band above the grid where the Remove and Uninstall bar appears. */
+const val TOP_BAND_DP = 48f
+
 fun isDefaultHome(ctx: Context): Boolean = try {
     ctx.getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
 } catch (_: Exception) {
@@ -176,6 +179,12 @@ class HomeActivity : Activity() {
         /** 0 none, 1 over Remove, 2 over Uninstall. */
         var dropHover = 0
 
+        /** Where the finger holds the shadow, and the shadow's size: the item is placed where it looks. */
+        var touchX = 0
+        var touchY = 0
+        var shadowW = 0
+        var shadowH = 0
+
         val isApp get() = item is AppItem || ((source == Src.DRAWER || source == Src.FOLDER) && appKey != null)
         val isWidget get() = item is WidgetItem || source == Src.PICKER
         val key: AppKey? get() = appKey ?: (item as? AppItem)?.key
@@ -210,6 +219,7 @@ class HomeActivity : Activity() {
         Store.init(this)
         Apps.init(this)
         Shade.init(this)
+        Haptics.init(this)
         pal = Themes.palette(this)
         applyRotation()
         edgeToEdge()
@@ -358,7 +368,7 @@ class HomeActivity : Activity() {
         homeCol.setPadding(bars.left, bars.top, bars.right, bars.bottom)
         drawer.setInsets(bars, ime)
         dropBar.setPadding(bars.left, bars.top, bars.right, 0)
-        dropBar.layoutParams.height = bars.top + (64 * d).roundToInt()
+        dropBar.layoutParams.height = bars.top + (TOP_BAND_DP * d).roundToInt()
         overlay?.let { if (it.tag == "full") it.setPadding(bars.left, bars.top, bars.right, bars.bottom) }
     }
 
@@ -393,6 +403,10 @@ class HomeActivity : Activity() {
                     setOnClickListener { Shortcuts.launch(this@HomeActivity, item.pkg, item.shortcutId, item.user, bounds(this), clipReveal(this)) }
                     setOnLongClickListener { itemLongPress(this, item, src) }
                 }
+            }
+            is DrawerButtonItem -> iconView(IconRenderer.drawerButton(this), getString(R.string.s_apps), labels, true).apply {
+                setOnClickListener { openDrawerFromButton() }
+                setOnLongClickListener { itemLongPress(this, item, src) }
             }
             is WidgetItem -> widgets.view(item).apply {
                 onLongPress = { f -> itemLongPress(f, item, src) }
@@ -811,6 +825,10 @@ class HomeActivity : Activity() {
 
     private fun startDrag(st: DragState, v: View): Boolean {
         val (tx, ty) = touchPoint(v)
+        st.touchX = tx
+        st.touchY = ty
+        st.shadowW = v.width
+        st.shadowH = v.height
         drag = st
         val ok = try {
             // Non-null clip data: an EditText under the finger would otherwise choke on a null clip.
@@ -1001,18 +1019,22 @@ class HomeActivity : Activity() {
             return
         }
 
+        // Cells are picked from the middle of the dragged item as drawn, not from the finger: a widget
+        // grabbed near its top edge lands where it looks like it will.
+        val vx = x - st.touchX + st.shadowW / 2f
+        val vy = y - st.touchY + st.shadowH / 2f
         val dockR = rectInRoot(dock)
         val wsR = rectInRoot(workspace)
         when {
-            dockR.contains(x, y) -> {
+            dockR.contains(vx, vy) -> {
                 setEdge(st, 0)
-                hover(st, dock, -1, x - dockR.left, y - dockR.top)
+                hover(st, dock, -1, vx - dockR.left, vy - dockR.top)
             }
-            wsR.contains(x, y) -> {
+            wsR.contains(x, y) || wsR.contains(vx, vy) -> {
                 val edge = 28 * d
                 setEdge(st, if (x < wsR.left + edge) -1 else if (x > wsR.right - edge) 1 else 0)
                 val g = workspace.pages.getOrNull(workspace.current) ?: return
-                hover(st, g, workspace.current, x - wsR.left, y - wsR.top)
+                hover(st, g, workspace.current, vx - wsR.left, (vy - wsR.top).coerceIn(0f, wsR.height() - 1))
             }
             else -> {
                 setEdge(st, 0)
@@ -1227,6 +1249,13 @@ class HomeActivity : Activity() {
         workspace.snapTo(workspace.current, animate = false)
     }
 
+    private fun openDrawerFromButton() {
+        closeOverlay()
+        closeFolder()
+        Haptics.play(root, Haptics.DRAWER, Haptics.Fx.THRESHOLD)
+        drawer.open()
+    }
+
     // ---- Drag-to-remove bar ----
 
     private fun buildDropBar() {
@@ -1253,13 +1282,13 @@ class HomeActivity : Activity() {
         val lp = { LinearLayout.LayoutParams(0, (44 * d).roundToInt(), 1f).apply { setMargins((8 * d).roundToInt(), 0, (8 * d).roundToInt(), 0) } }
         dropBar.addView(dropRemove, lp())
         dropBar.addView(dropUninstall, lp())
-        root.addView(dropBar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (64 * d).roundToInt(), Gravity.TOP))
+        root.addView(dropBar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, (TOP_BAND_DP * d).roundToInt(), Gravity.TOP))
     }
 
     /** Remove for anything on the home screen, dock or in a folder; Uninstall for apps that can be. */
     private fun showDropBar(st: DragState) {
         if (st.source == Src.SHORTCUT || st.source == Src.PICKER) return
-        val canRemove = st.source == Src.PAGE || st.source == Src.DOCK || st.source == Src.FOLDER
+        val canRemove = (st.source == Src.PAGE || st.source == Src.DOCK || st.source == Src.FOLDER) && st.item !is DrawerButtonItem
         val app = st.key?.let { Apps.apps[it] }
         val canUninstall = app != null && !app.isSystem && st.item !is FolderItem
         if (!canRemove && !canUninstall) return
@@ -1335,7 +1364,8 @@ class HomeActivity : Activity() {
             while (pages.size < n) {
                 val g = CellGrid(context, cols, rows)
                 val p = (8 * resources.displayMetrics.density).roundToInt()
-                g.setPadding(p, 0, p, 0)
+                // An empty band on top, like Pixel's At a Glance row: the Remove bar lives there while dragging.
+                g.setPadding(p, (TOP_BAND_DP * resources.displayMetrics.density).roundToInt(), p, 0)
                 pages.add(g)
                 addView(g)
             }
@@ -1454,6 +1484,8 @@ class HomeActivity : Activity() {
                     vt?.addMovement(ev)
                     val hit = itemViewAt(ev.x, ev.y)
                     downOnWidget = hit is WidgetFrame
+                    // DOWN arrives here twice (intercept, then onTouchEvent): post the long-press once.
+                    removeCallbacks(longPress)
                     if (hit == null) postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -1464,7 +1496,8 @@ class HomeActivity : Activity() {
                         mode = when {
                             abs(dx) > abs(dy) -> 1
                             downOnWidget -> -1
-                            dy < 0 -> 2
+                            dy < 0 && !Store.layout.settings.drawerButton -> 2
+                            dy < 0 -> -1
                             Shade.available && Store.layout.settings.swipeDown -> 3
                             else -> -1
                         }

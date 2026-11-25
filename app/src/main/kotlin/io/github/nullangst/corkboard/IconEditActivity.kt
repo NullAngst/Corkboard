@@ -27,7 +27,6 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
-import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -40,7 +39,8 @@ class IconEditActivity : Activity() {
     private lateinit var target: String
     private var original: IconSettings? = null
     private lateinit var s: IconSettings
-    private var picked: String? = null
+    /** True while the picker is choosing the themed-look image instead of the icon image. */
+    private var pickingMono = false
     private lateinit var preview: ImageView
     private lateinit var scroll: ScrollView
     private lateinit var list: LinearLayout
@@ -103,14 +103,6 @@ class IconEditActivity : Activity() {
             bottomMargin = Ui.dp(this@IconEditActivity, 8f)
         })
         updatePreview()
-        if (target.startsWith("app:") && IconRenderer.themedColors(this) != null) {
-            add(TextView(this).apply {
-                text = getString(R.string.e_themed_note)
-                setTextColor(pal.textDim)
-                gravity = Gravity.CENTER
-                setPadding(Ui.dp(context, 24f), 0, Ui.dp(context, 24f), 0)
-            })
-        }
 
         add(Ui.header(this, pal, getString(R.string.e_source)))
         val sources = LinearLayout(this).apply {
@@ -126,8 +118,8 @@ class IconEditActivity : Activity() {
             s.source = "original"
             build()
         })
-        sources.addView(chip(getString(R.string.e_photo)) { pick(true) })
-        sources.addView(chip(getString(R.string.e_file)) { pick(false) })
+        sources.addView(chip(getString(R.string.e_photo)) { pick(true, mono = false) })
+        sources.addView(chip(getString(R.string.e_file)) { pick(false, mono = false) })
         sources.addView(chip(getString(R.string.reset)) {
             s = IconSettings(label = s.label)
             build()
@@ -175,7 +167,6 @@ class IconEditActivity : Activity() {
 
         add(Ui.header(this, pal, getString(R.string.e_background)))
         val custom = s.background.startsWith("#")
-        val bgEnabled = s.treatment != "fill"
         add(radios(
             listOf(
                 "auto" to getString(R.string.t_auto), "white" to getString(R.string.bg_white), "black" to getString(R.string.bg_black),
@@ -185,8 +176,6 @@ class IconEditActivity : Activity() {
         ) {
             s.background = if (it == "custom") (if (custom) s.background else "#3E8C7E") else it
             build()
-        }.apply {
-            alpha = if (bgEnabled) 1f else 0.5f
         })
         if (custom) {
             val et = EditText(this).apply {
@@ -220,6 +209,39 @@ class IconEditActivity : Activity() {
             })
         }
 
+        if (target.startsWith("app:") && IconRenderer.themedSupported) {
+            add(Ui.header(this, pal, getString(R.string.e_themed)))
+            if (!Store.layout.settings.themedIcons) {
+                add(TextView(this).apply {
+                    text = getString(R.string.e_themed_off)
+                    setTextColor(pal.textDim)
+                    setPadding(Ui.dp(context, 20f), 0, Ui.dp(context, 20f), Ui.dp(context, 8f))
+                })
+            }
+            add(radios(
+                listOf(
+                    "auto" to getString(R.string.t_auto), "generate" to getString(R.string.e_mono_generate),
+                    "image" to getString(R.string.e_mono_image), "off" to getString(R.string.s_cache_off),
+                ),
+                s.mono, true,
+            ) {
+                s.mono = it
+                if (it == "image" && s.monoFile == null) pick(true, mono = true) else build()
+            })
+            if (s.mono == "image") {
+                add(LinearLayout(this).apply {
+                    setPadding(Ui.dp(context, 16f), Ui.dp(context, 8f), Ui.dp(context, 16f), 0)
+                    addView(chip(getString(R.string.e_mono_choose)) { pick(true, mono = true) })
+                })
+            }
+            add(TextView(this).apply {
+                text = getString(R.string.e_mono_help)
+                setTextColor(pal.textDim)
+                textSize = 13f
+                setPadding(Ui.dp(context, 20f), Ui.dp(context, 8f), Ui.dp(context, 20f), 0)
+            })
+        }
+
         val buttons = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.END
@@ -241,7 +263,8 @@ class IconEditActivity : Activity() {
         preview.setImageBitmap(IconRenderer.forTarget(this, target, Ui.dp(this, 128f), s))
     }
 
-    private fun pick(photo: Boolean) {
+    private fun pick(photo: Boolean, mono: Boolean) {
+        pickingMono = mono
         val i = if (photo && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Intent(MediaStore.ACTION_PICK_IMAGES).setType("image/*")
         } else {
@@ -281,25 +304,21 @@ class IconEditActivity : Activity() {
             Toast.makeText(this, R.string.cant_read_image, Toast.LENGTH_SHORT).show()
             return
         }
-        dropPicked()
-        picked = path
-        s.source = "custom"
-        s.file = path
+        if (pickingMono) {
+            s.mono = "image"
+            s.monoFile = path
+        } else {
+            s.source = "custom"
+            s.file = path
+        }
         build()
-    }
-
-    /** A picked image that was replaced or never saved is deleted; the original file is never touched. */
-    private fun dropPicked() {
-        val p = picked ?: return
-        if (p != original?.file) File(Store.filesDir, p).delete()
-        picked = null
     }
 
     private fun save() {
         if (s.source != "custom") s.file = null
+        if (s.mono != "image") s.monoFile = null
         val icons = Store.layout.icons
         if (s.isDefault()) icons.remove(target) else icons[target] = s
-        picked = null
         AppKey.parse(target.removePrefix("app:"))?.let { DiskIcons.clearPackage(it.pkg) }
         IconRenderer.clear()
         Store.save()
@@ -308,13 +327,12 @@ class IconEditActivity : Activity() {
     }
 
     private fun cancel() {
-        dropPicked()
         finish()
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Leaving by back or swipe without saving: drop the unsaved picked image.
-        if (isFinishing) dropPicked()
+        // Images picked but never saved aren't in the layout, so this deletes them. Saved ones stay.
+        if (isFinishing) Store.cleanIcons()
     }
 }

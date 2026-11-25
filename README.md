@@ -55,18 +55,24 @@ App shortcuts, pinned shortcuts and pausing work apps only work once Corkboard i
 On first start the home screen is empty and every app is in the drawer. Everything installed at that point counts as already seen, so it does not spill 150 icons across a dozen pages. Apps installed after that land on the home screen while "Add new apps to home screen" is on.
 
 - **Tap** an app to open it. **Long-press** to lift it. Let go without moving to get its menu.
-- **Swipe up** from anywhere above the navigation bar for the drawer, **swipe down** for notifications, **swipe left or right** for pages. With gesture navigation, a swipe that starts on the very bottom edge belongs to Android and goes to recents instead.
+- **Swipe up** from anywhere above the navigation bar for the drawer (or tap the **Apps** button, if you turned on "Open the drawer with a button"), **swipe down** for notifications, **swipe left or right** for pages. With gesture navigation, a swipe that starts on the very bottom edge belongs to Android and goes to recents instead.
 - **Long-press an app in the drawer** and start moving it: the drawer drops away and you place it on the home screen. Let go without moving for its menu.
-- **Long-press empty space** for Wallpaper, Widgets and Launcher settings.
+- **Long-press empty space** for Wallpaper, Widgets and Launcher settings. The widget picker has a search box at the top that matches widget and app names.
 - **Home button** while on the home screen closes whatever is open and jumps to page 1.
 
 ### Removing and uninstalling by dragging
 
-While you drag an icon, a bar appears at the top of the screen. Drop on **Remove** to take it off the home screen, dock or folder (the app stays in the drawer). Drop on **Uninstall** to open Android's uninstall dialog; the icon goes back where it was until the app is actually gone. Uninstall only shows for apps that can be uninstalled, and Remove doesn't show when dragging out of the drawer. The bar sits over the top of the first row while you drag, so to drop into the top row aim for the lower half of the cell.
+While you drag an icon, a bar appears at the top of the screen. Drop on **Remove** to take it off the home screen, dock or folder (the app stays in the drawer). Drop on **Uninstall** to open Android's uninstall dialog; the icon goes back where it was until the app is actually gone. Uninstall only shows for apps that can be uninstalled, and Remove doesn't show when dragging out of the drawer. The bar lives in an empty band above the grid (where Pixel puts At a Glance), so it never covers the first row. Where an item lands is decided by where the dragged item is drawn, not by your finger, so a widget grabbed near its top edge goes where it looks like it will.
+
+### Drawer button
+
+Under Drawer, **Open the drawer with a button** adds an **Apps** button to the dock (the middle slot if it's free). It moves like any other icon and can't be removed while the setting is on. With it on, swiping up does nothing; turn the setting off to go back to swiping.
 
 ### Haptics
 
-Launcher settings, **Haptics**. **Vibration feedback** turns it all on or off. Under it, each moment has its own switch: opening the app drawer, lifting an icon or opening a menu, making or adding to a folder, placing an icon, icons moving aside or no room, changing page while dragging, and the Remove and Uninstall targets. It uses Android's built-in haptic effects, so the feel comes from the phone, it needs no vibration permission, and it also follows Android's own "Touch feedback" setting. On Android 10 to 13 some effects fall back to plainer ones.
+Launcher settings, **Haptics**. **Vibration feedback** turns it all on or off. Under it, each moment has its own switch: opening the app drawer, lifting an icon or opening a menu, making or adding to a folder, placing an icon, icons moving aside or no room, changing page while dragging, and the Remove and Uninstall targets.
+
+It plays the phone's own predefined effects (click, heavy click, tick, double click) through the system vibrator as touch feedback, so the feel comes from the phone and Android's **Vibration & haptics, Touch feedback** setting still applies: if that's off, Corkboard stays quiet too. Icons have Android's own long-press buzz turned off, so it can't cut Corkboard's off halfway.
 
 ### Rotation
 
@@ -76,7 +82,16 @@ The home screen stays in the phone's natural orientation. Turn on **Allow home s
 
 Turn on **Themed icons** in Launcher settings (Android 13 or newer). Apps that ship a monochrome icon get drawn as that icon, tinted with your wallpaper's colors, inside your chosen shape. Light and dark swap with the launcher theme.
 
-Apps without a monochrome icon keep their normal icon. So does any app you gave a custom image. If anything goes wrong reading an app's monochrome layer (none there, it draws nothing, or Android throws), that app quietly falls back to its normal icon. If the wallpaper colors can't be read, the launcher theme's colors are used instead.
+Apps without a monochrome icon get one generated from their normal icon while **Theme apps without a monochrome icon** is on (it is by default), the same idea Pixel Launcher uses: flatten the icon, turn brightness into a single-color shape, stretch the contrast, and make the background transparent. Corkboard adds a contrast curve so faint gradients and baked-in shadows drop out. Old-style icons are put on white first, like Pixel does. Busy, colorful icons can come out blobby; that's the same limit Pixel has.
+
+Per app, under **Edit icon, Themed look**:
+
+- **Auto**: the app's own monochrome icon, or a generated one if that setting is on. An app with a custom icon image keeps that image.
+- **Generate from icon**: always generate, even if the app ships its own.
+- **Your image**: pick any image and it becomes the themed icon. A plain logo on a plain background works best; it's turned into a single-color shape and tinted.
+- **Off**: this app never gets themed.
+
+If anything goes wrong (no monochrome layer, nothing visible, Android throws), that app quietly falls back to its normal icon. If the wallpaper colors can't be read, the launcher theme's colors are used instead.
 
 ### Icon cache
 
@@ -86,7 +101,9 @@ The default is 25 MB, which holds several hundred icons. Change it under Launche
 
 ### Fixing an ugly legacy icon
 
-Long-press the app, pick **Edit icon**. Treatment **Auto** already fills full-bleed square icons into the shape. If it still looks off, try **Fill** or **Fit**, nudge **Scale**, or set a **Background** color for Fit. The preview updates live.
+Long-press the app, pick **Edit icon**. Treatment **Auto** fills the shape with full-bleed square icons and with old rounded-square icons (My Boy, Note Pad and most pre-2017 icons), cropping their transparent corners. Icons that sit on a solid colored plate, like a colored circle, get that color as their background. Any other shaped logo is fitted on white. If it still looks off, try **Fill** or **Fit**, nudge **Scale**, or pick a **Background**.
+
+**Background** works on every icon. On a modern (adaptive) icon it replaces the app's own background layer, so an icon on a white plate, like Total Commander's, can go black, transparent or any color. A few apps, Chrome among them, draw their whole logo in the background layer; replacing it would erase the logo, so for those the setting is ignored. The preview updates live.
 
 ## Translations
 
@@ -106,6 +123,7 @@ Lint fails the build if a string is missing from any language, so a new string h
 
 | Manifest entry | Why |
 |---|---|
+| `VIBRATE` | Haptics through the system vibrator. Normal permission, granted at install. |
 | `REQUEST_DELETE_PACKAGES` | So Uninstall can open the system uninstall dialog. Normal permission, granted at install. |
 | `EXPAND_STATUS_BAR` | So swipe down can open the notification shade. Normal permission, granted at install. |
 | `<queries>` for MAIN + LAUNCHER | Lets Android 11+ show the launcher every app with a launcher icon, without `QUERY_ALL_PACKAGES`. |
