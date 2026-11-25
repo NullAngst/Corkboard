@@ -287,9 +287,12 @@ object IconRenderer {
      * any throw at all.
      */
     private fun themed(ctx: Context, src: Drawable?, s: IconSettings?, size: Int, user: UserHandle?, colors: Pair<Int, Int>?): Bitmap? {
+        android.util.Log.d("CorkTouch", "themed colors=$colors src=${src?.javaClass?.simpleName} themedSetting=${Store.layout.settings.themedIcons}")
         if (colors == null) return null
         return try {
-            val mask = monoMask(ctx, src, s, size) ?: return null
+            val mask = monoMask(ctx, src, s, size)
+            android.util.Log.d("CorkTouch", "mask=${mask != null}")
+            if (mask == null) return null
             val out = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val c = Canvas(out)
             val shape = if (s == null || s.shape == "global") Store.layout.settings.shape else s.shape
@@ -298,7 +301,8 @@ object IconRenderer {
             val tint = Paint(paint).apply { colorFilter = BlendModeColorFilter(colors.second, BlendMode.SRC_IN) }
             c.drawBitmap(mask, 0f, 0f, tint)
             badge(ctx, out, user)
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            android.util.Log.w("CorkTouch", "themed failed", t)
             null
         }
     }
