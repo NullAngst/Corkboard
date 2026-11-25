@@ -1,5 +1,13 @@
 # Changes
 
+2026.11.25 - New app icon
+
+* New launcher icon: a heavy round C in cream with a copper pin as its full stop, on ink (#15191C). It replaces the tilted verdigris pushpin
+* The themed icon (Android 13+) is the same C and dot as one silhouette
+* Still three plain vector drawables (background, foreground, monochrome), so the APK size doesn't change
+
+Reasons for changes: the old icon's shading, patina speckle and mid teal background read as AI-made. This one was picked from five flat designs shown in four deep palettes.
+
 2026.11.25 - Bug fixes and security hardening
 
 * Fixed: a widget dragged to a new spot turned invisible there until the launcher restarted
