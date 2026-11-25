@@ -226,26 +226,24 @@ object IconRenderer {
     private fun generateMono(d: Drawable, size: Int, scale: Float): Bitmap? {
         val flat = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val c = Canvas(flat)
-        c.drawColor(Color.BLACK)
-        // Alpha of what was drawn, so the edge scan can skip transparent margins around old icons.
-        val alpha: IntArray
+        val adaptive = d is AdaptiveIconDrawable
         if (d is AdaptiveIconDrawable) {
+            // Adaptive icons fill their canvas: flatten over black like Launcher3.
+            c.drawColor(Color.BLACK)
             val ext = (size * 0.25f).roundToInt()
             d.background?.let { drawLayer(c, it, ext, size, 1f) }
             d.foreground?.let { drawLayer(c, it, ext, size, 1f) }
-            alpha = IntArray(size * size) { 255 }
         } else {
+            // Old icons and picked images go on white first, the way Pixel wraps legacy icons, so
+            // their transparent surroundings and white plates count as background.
+            c.drawColor(Color.WHITE)
             val b = toBitmap(d, size)
             val content = contentBounds(b)
             val t = size * 0.8f
             val k = t / max(content.width(), content.height()).coerceAtLeast(1)
             val w = content.width() * k
             val h = content.height() * k
-            val dst = RectF((size - w) / 2f, (size - h) / 2f, (size + w) / 2f, (size + h) / 2f)
-            c.drawBitmap(b, content, dst, paint)
-            val clear = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-            Canvas(clear).drawBitmap(b, content, dst, paint)
-            alpha = pixels(clear).map { it ushr 24 }.toIntArray()
+            c.drawBitmap(b, content, RectF((size - w) / 2f, (size - h) / 2f, (size + w) / 2f, (size + h) / 2f), paint)
         }
         val px = pixels(flat)
         val lum = IntArray(px.size)
@@ -261,31 +259,14 @@ object IconRenderer {
         if (hi <= lo) return null
         val range = hi - lo
         for (i in lum.indices) lum[i] = (lum[i] - lo) * 255 / range
-        // The background is whatever sits at the icon's outer edge: from every side, walk inward to
-        // the first solid pixel and average what is there.
+        // Edges stand for the background: the outermost rows and columns.
         var edge = 0L
         var count = 0
-        fun walk(x0: Int, y0: Int, dx: Int, dy: Int) {
-            var x = x0
-            var y = y0
-            while (x in 0 until size && y in 0 until size) {
-                if (alpha[y * size + x] >= 200) {
-                    edge += lum[y * size + x]
-                    count++
-                    return
-                }
-                x += dx
-                y += dy
-            }
+        for (i in 0 until size) {
+            edge += lum[i] + lum[(size - 1) * size + i] + lum[i * size] + lum[i * size + size - 1]
+            count += 4
         }
-        val step = (size / 32).coerceAtLeast(1)
-        for (i in 0 until size step step) {
-            walk(i, 0, 0, 1)
-            walk(i, size - 1, 0, -1)
-            walk(0, i, 1, 0)
-            walk(size - 1, i, -1, 0)
-        }
-        if (count == 0) return null
+        if (!adaptive) edge = 255L * count
         val invert = edge / count.toFloat() > 127f
         val out = IntArray(lum.size)
         for (i in lum.indices) {
