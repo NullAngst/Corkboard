@@ -30,10 +30,15 @@ object AutoBackup {
     private const val DELAY_MS = 60_000L
     private const val DAY_MS = 24 * 60 * 60 * 1000L
 
+    /** After a failed scheduled backup, wait this long before trying again on the next return home. */
+    private const val RETRY_MS = 30 * 60 * 1000L
+
     private val main = Handler(Looper.getMainLooper())
     private val io = Executors.newSingleThreadExecutor()
     private var app: Context? = null
     private var pending = false
+    private var running = 0
+    private var lastFail = 0L
     private val run = Runnable {
         pending = false
         app?.let { backupNow(it) }
@@ -75,15 +80,21 @@ object AutoBackup {
     /** Daily, weekly or monthly: run when the home screen comes back and the last one is that old. */
     fun periodicCheck(ctx: Context) {
         if (!active() || s.autoBackupFreq == "change") return
-        if (System.currentTimeMillis() - s.lastAutoBackup < interval()) return
+        val now = System.currentTimeMillis()
+        if (now - s.lastAutoBackup < interval()) return
+        // A missing folder would otherwise be retried on every single return to the home screen.
+        if (s.autoBackupError != null && now - lastFail < RETRY_MS) return
         backupNow(ctx)
     }
 
+    /** [done] marks a backup the user asked for; those always run, scheduled ones skip if one is under way. */
     fun backupNow(ctx: Context, done: ((Boolean) -> Unit)? = null) {
         val uri = s.autoBackupUri ?: run {
             done?.invoke(false)
             return
         }
+        if (done == null && running > 0) return
+        running++
         val appCtx = ctx.applicationContext
         val json = Store.backupJson()
         io.execute {
@@ -94,7 +105,8 @@ object AutoBackup {
                 t.message ?: t.javaClass.simpleName
             }
             main.post {
-                if (error == null) s.lastAutoBackup = System.currentTimeMillis()
+                running--
+                if (error == null) s.lastAutoBackup = System.currentTimeMillis() else lastFail = System.currentTimeMillis()
                 s.autoBackupError = error
                 Store.saveQuiet()
                 done?.invoke(error == null)
@@ -102,15 +114,29 @@ object AutoBackup {
         }
     }
 
+    /** Only a folder the user picked here, with write access still granted, is ever written to. */
+    private fun hasAccess(ctx: Context, tree: Uri): Boolean =
+        ctx.contentResolver.persistedUriPermissions.any { it.uri == tree && it.isWritePermission }
+
     private fun write(ctx: Context, tree: Uri, json: ByteArray) {
+        if (!hasAccess(ctx, tree)) throw IOException(ctx.getString(R.string.b_folder_lost))
         val cr = ctx.contentResolver
         val dirId = DocumentsContract.getTreeDocumentId(tree)
         val dir = DocumentsContract.buildDocumentUriUsingTree(tree, dirId)
         val name = PREFIX + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()) + ".zip"
         val doc = DocumentsContract.createDocument(cr, dir, "application/zip", name)
             ?: throw IOException("Can't create a file in that folder")
-        val out = cr.openOutputStream(doc, "w") ?: throw IOException("Can't write to that folder")
-        out.use { Store.exportZip(it, json) }
+        try {
+            val out = cr.openOutputStream(doc, "w") ?: throw IOException("Can't write to that folder")
+            out.use { Store.exportZip(it, json) }
+        } catch (t: Throwable) {
+            // A half-written zip would count as the newest backup and push a good one out when pruning.
+            try {
+                DocumentsContract.deleteDocument(cr, doc)
+            } catch (_: Exception) {
+            }
+            throw t
+        }
         prune(ctx, tree, dirId)
     }
 

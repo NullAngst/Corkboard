@@ -21,6 +21,7 @@ import android.os.Looper
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import java.text.Collator
 
 class AppInfo(val key: AppKey, val info: LauncherActivityInfo) {
     val user: UserHandle get() = info.user
@@ -151,6 +152,7 @@ object Apps {
             if (key == null) {
                 l.seen.remove(s)
                 l.hidden.remove(s)
+                l.icons.remove("app:$s")
                 changed = true
                 continue
             }
@@ -164,6 +166,17 @@ object Apps {
 
         // Pinned shortcuts and widgets whose app is gone.
         val awm = AppWidgetManager.getInstance(app)
+        // A restored widget spot is checked against the widget list itself: an app that only provides
+        // widgets has no launcher icon, so package visibility hides it from LauncherApps.
+        val providers = HashMap<Long, Set<android.content.ComponentName>>()
+        fun providerExists(p: android.content.ComponentName, serial: Long): Boolean = p in providers.getOrPut(serial) {
+            val u = user(serial)
+            try {
+                if (u == null) emptySet() else awm.getInstalledProvidersForProfile(u).map { it.provider }.toHashSet()
+            } catch (_: Exception) {
+                emptySet()
+            }
+        }
         for (list in l.containers()) {
             val dead = list.filter {
                 when (it) {
@@ -171,7 +184,7 @@ object Apps {
                     is WidgetItem -> userTrusted(it.user, trusted) && if (it.widgetId >= 0) {
                         awm.getAppWidgetInfo(it.widgetId) == null
                     } else {
-                        it.provider?.let { p -> !packageInstalled(p.packageName, it.user) } ?: true
+                        it.provider?.let { p -> !providerExists(p, it.user) } ?: true
                     }
                     else -> false
                 }
@@ -216,9 +229,13 @@ object Apps {
     /** Apps for the drawer: installed, not hidden, sorted by label. */
     fun drawerApps(work: Boolean): List<AppInfo> {
         val hidden = Store.layout.hidden
+        // Sorted the way the phone's language sorts: "Ärzte" next to "Apps", not after "Zoom".
+        val collator = Collator.getInstance().apply { strength = Collator.SECONDARY }
         return apps.values
             .filter { isWork(it.key.user) == work && it.key.toString() !in hidden }
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
+            .map { it to collator.getCollationKey(it.label) }
+            .sortedWith { a, b -> a.second.compareTo(b.second) }
+            .map { it.first }
     }
 
     private fun changed(pkg: String?) {

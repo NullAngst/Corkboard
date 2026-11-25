@@ -6,7 +6,7 @@ updates:
     schedule:
       interval: weekly
 
-  # actions/checkout, actions/setup-java, actions/attest-build-provenance.
+  # actions/checkout, actions/setup-java, gradle/actions, actions/upload-artifact, actions/attest-build-provenance.
   - package-ecosystem: github-actions
     directory: /
     schedule:

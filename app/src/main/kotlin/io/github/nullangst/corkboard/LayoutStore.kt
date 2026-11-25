@@ -11,7 +11,9 @@ import android.graphics.Point
 import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.ZipEntry
@@ -20,7 +22,9 @@ import java.util.zip.ZipOutputStream
 
 /** An app is its launchable activity plus the profile (user) serial number it lives in. */
 data class AppKey(val component: ComponentName, val user: Long) {
-    override fun toString() = component.flattenToShortString() + "#" + user
+    // Built once: this string is the key for icons, hidden apps and the seen set, looked up per icon.
+    private val text = component.flattenToShortString() + "#" + user
+    override fun toString() = text
     val pkg: String get() = component.packageName
 
     companion object {
@@ -34,7 +38,16 @@ data class AppKey(val component: ComponentName, val user: Long) {
     }
 }
 
-sealed class Item(val id: Long) {
+/** Largest cell coordinate or span read from a file. Anything past it is damage, and refit() moves it. */
+private const val MAX_CELL = 32
+
+/** Ids stay well below Long.MAX_VALUE so counting up can never wrap around to a negative id. */
+private const val MAX_ID = 1L shl 40
+
+sealed class Item(id: Long) {
+    /** Only changed when loading a file whose ids clash or are out of range. */
+    var id = id
+        internal set
     var x = 0
     var y = 0
     var w = 1
@@ -224,14 +237,41 @@ class Layout {
                 val g = occupancy(keep, cols, rows)
                 if (fitsGrid && fits(g, it.x, it.y, it.w, it.h)) keep.add(it) else misfits.add(it)
             }
-            page.clear()
-            page.addAll(keep)
+            // retainAll keeps the stored order, so a page with nothing wrong comes out unchanged.
+            val kept = keep.toHashSet()
+            page.retainAll { it in kept }
         }
-        for (it in dock.filter { it.x >= cols }) {
-            dock.remove(it)
-            misfits.add(it)
+        // The dock is one row: each slot once, inside the grid.
+        val taken = HashSet<Int>()
+        for (it in dock.toList()) {
+            if (it.x !in 0 until cols || !taken.add(it.x)) {
+                dock.remove(it)
+                misfits.add(it)
+            }
         }
         for (it in misfits) placeFirstFree(it)
+    }
+
+    /**
+     * Makes a freshly read layout safe to use: unique ids with room to count up, folders without
+     * repeats, and every item inside the grid without overlaps. A layout saved by Corkboard itself
+     * comes through unchanged.
+     */
+    fun sanitize(storedNextId: Long) {
+        val used = HashSet<Long>()
+        val clash = ArrayList<Item>()
+        for (it in allItems()) if (it.id !in 0..MAX_ID || !used.add(it.id)) clash.add(it)
+        nextId = maxOf(storedNextId.takeIf { it in 1..MAX_ID } ?: 1L, (used.maxOrNull() ?: 0L) + 1)
+        for (it in clash) it.id = newId()
+        for (f in allItems().filterIsInstance<FolderItem>()) {
+            val unique = f.apps.distinct()
+            if (unique.size != f.apps.size) {
+                f.apps.clear()
+                f.apps.addAll(unique)
+            }
+        }
+        fixFolders()
+        refit()
     }
 
     /** Puts the drawer button in the dock (middle slot if free) or on the home screen, or removes it. */
@@ -295,18 +335,49 @@ object Store {
 
     private var app: Context? = null
 
+    /** Where an import is unpacked and checked before anything in use changes. */
+    private val stagingDir: File get() = File(filesDir, "import-staging")
+
+    /**
+     * Icon files picked in Edit icon but not saved yet. A package change can run [cleanIcons] while
+     * the editor is open, and without this it would delete the image the user just picked.
+     */
+    val pendingIcons: MutableSet<String> = HashSet()
+
     fun init(ctx: Context) {
         if (::layout.isInitialized) return
         app = ctx.applicationContext
         filesDir = ctx.applicationContext.filesDir
+        // Left over only if the process died mid-import.
+        stagingDir.deleteRecursively()
         file = AtomicFile(File(filesDir, "layout.json"))
         fresh = !file.baseFile.exists()
         layout = try {
             fromJson(JSONObject(String(file.readFully(), Charsets.UTF_8)))
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
+            // An unreadable layout is kept as layout.json.bad instead of being overwritten by the
+            // next save, and the start counts as a first start so apps don't spill onto the home screen.
+            if (file.baseFile.exists()) {
+                try {
+                    file.baseFile.copyTo(File(filesDir, "layout.json.bad"), overwrite = true)
+                } catch (_: Exception) {
+                }
+                fresh = true
+            }
             Layout()
         }
     }
+
+    private val safeName = Regex("[A-Za-z0-9._-]{1,128}")
+
+    /** A plain file name we'd write ourselves, never a path: no slashes, no "." or "..". */
+    private fun iconName(name: String): String? = name.takeIf { safeName.matches(it) && it != "." && it != ".." }
+
+    /**
+     * The custom icon file a stored name points at ("icons/x.png"), or null if the name isn't one
+     * Corkboard would write. Names come from layout.json and from backups, so they're never used as paths.
+     */
+    fun iconFile(stored: String?): File? = stored?.substringAfterLast('/')?.let { iconName(it) }?.let { File(iconsDir, it) }
 
     /** Saves, and lets automatic backup know something changed. */
     fun save() {
@@ -338,7 +409,7 @@ object Store {
     /** Deletes custom icon files nothing points at any more. */
     fun cleanIcons() {
         val used = layout.icons.values.flatMap { listOfNotNull(it.file, it.monoFile) }.map { it.substringAfterLast('/') }.toSet()
-        iconsDir.listFiles()?.forEach { if (it.name !in used) it.delete() }
+        iconsDir.listFiles()?.forEach { if (it.name !in used && it.name !in pendingIcons) it.delete() }
     }
 
     // ---- JSON ----
@@ -404,10 +475,13 @@ object Store {
             )
             else -> return null
         }
-        item.x = o.optInt("x", 0)
-        item.y = o.optInt("y", 0)
-        item.w = o.optInt("w", 1).coerceAtLeast(1)
-        item.h = o.optInt("h", 1).coerceAtLeast(1)
+        item.x = o.optInt("x", 0).coerceIn(0, MAX_CELL)
+        item.y = o.optInt("y", 0).coerceIn(0, MAX_CELL)
+        // Only widgets span cells; an app, folder or shortcut is always one cell.
+        if (item is WidgetItem) {
+            item.w = o.optInt("w", 1).coerceIn(1, MAX_CELL)
+            item.h = o.optInt("h", 1).coerceIn(1, MAX_CELL)
+        }
         return item
     }
 
@@ -533,8 +607,7 @@ object Store {
                 )
             }
         }
-        val maxId = l.allItems().maxOfOrNull { it.id } ?: 0
-        l.nextId = maxOf(o.optLong("nextId", 1), maxId + 1)
+        l.sanitize(o.optLong("nextId", 1))
         return l
     }
 
@@ -543,37 +616,101 @@ object Store {
     /** The layout as backup bytes. Call on the main thread; the zip itself can be written anywhere. */
     fun backupJson(): ByteArray = toJson(layout).toString(1).toByteArray(Charsets.UTF_8)
 
+    /** Writes the backup zip. Safe off the main thread: an icon deleted meanwhile is just left out. */
     fun exportZip(out: OutputStream, json: ByteArray = backupJson()) {
         ZipOutputStream(out).use { zip ->
             zip.putNextEntry(ZipEntry("layout.json"))
             zip.write(json)
             zip.closeEntry()
-            iconsDir.listFiles()?.forEach { f ->
+            for (f in iconsDir.listFiles().orEmpty()) {
+                val data = try {
+                    f.readBytes()
+                } catch (_: IOException) {
+                    continue
+                }
                 zip.putNextEntry(ZipEntry("icons/" + f.name))
-                f.inputStream().use { it.copyTo(zip) }
+                zip.write(data)
                 zip.closeEntry()
             }
         }
     }
 
-    private val safeName = Regex("[A-Za-z0-9._-]+")
+    // A real backup is a few hundred KB. These limits stop a damaged or hostile zip from filling the
+    // disk or running the launcher out of memory.
+    private const val MAX_JSON = 4L shl 20
+    private const val MAX_IMAGE = 4L shl 20
+    private const val MAX_TOTAL = 64L shl 20
+    private const val MAX_ENTRIES = 4096
 
-    /** Reads a backup zip. Icons are written straight into files/icons. Widgets come back needing setup. */
-    fun importZip(input: InputStream): Layout {
-        var json: String? = null
-        ZipInputStream(input).use { zip ->
-            while (true) {
-                val e = zip.nextEntry ?: break
-                val name = e.name
-                when {
-                    name == "layout.json" -> json = String(zip.readBytes(), Charsets.UTF_8)
-                    name.startsWith("icons/") && safeName.matches(name.removePrefix("icons/")) ->
-                        File(iconsDir, name.removePrefix("icons/")).outputStream().use { zip.copyTo(it) }
+    /** A read backup: its layout, and its icons waiting in a scratch folder until [commitImport]. */
+    class Imported(val layout: Layout, val staged: File)
+
+    /**
+     * Reads a backup zip. Safe off the main thread: nothing in use is touched, icons land in a scratch
+     * folder, and a file that isn't a valid backup throws without leaving anything behind.
+     */
+    fun importZip(input: InputStream): Imported {
+        val stage = stagingDir.apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        try {
+            var json: ByteArray? = null
+            var total = 0L
+            var entries = 0
+            ZipInputStream(input).use { zip ->
+                while (true) {
+                    val e = zip.nextEntry ?: break
+                    if (++entries > MAX_ENTRIES) throw IOException("Too many files in backup")
+                    val name = e.name
+                    when {
+                        name == "layout.json" -> json = readCapped(zip, MAX_JSON)
+                        name.startsWith("icons/") -> {
+                            val safe = iconName(name.removePrefix("icons/")) ?: continue
+                            val data = readCapped(zip, MAX_IMAGE)
+                            total += data.size
+                            if (total > MAX_TOTAL) throw IOException("Backup too large")
+                            File(stage, safe).writeBytes(data)
+                        }
+                    }
+                }
+            }
+            val bytes = json ?: throw IllegalArgumentException("Not a Corkboard backup")
+            val l = fromJson(JSONObject(String(bytes, Charsets.UTF_8)))
+            for (it in l.allItems()) if (it is WidgetItem) it.widgetId = -1
+            return Imported(l, stage)
+        } catch (t: Throwable) {
+            stage.deleteRecursively()
+            // Deeply nested JSON throws StackOverflowError: report it as a bad file, not a crash.
+            throw t as? Exception ?: IOException(t)
+        }
+    }
+
+    private fun readCapped(input: InputStream, cap: Long): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buf = ByteArray(16 * 1024)
+        var n = 0L
+        while (true) {
+            val r = input.read(buf)
+            if (r < 0) break
+            n += r
+            if (n > cap) throw IOException("Backup entry too large")
+            out.write(buf, 0, r)
+        }
+        return out.toByteArray()
+    }
+
+    /** Moves an import's icons into place. Main thread, right before [replace] with its layout. */
+    fun commitImport(im: Imported) {
+        for (f in im.staged.listFiles().orEmpty()) {
+            val dst = File(iconsDir, f.name)
+            if (!f.renameTo(dst)) {
+                try {
+                    f.copyTo(dst, overwrite = true)
+                } catch (_: IOException) {
                 }
             }
         }
-        val l = fromJson(JSONObject(json ?: throw IllegalArgumentException("Not a Corkboard backup")))
-        for (it in l.allItems()) if (it is WidgetItem) it.widgetId = -1
-        return l
+        im.staged.deleteRecursively()
     }
 }

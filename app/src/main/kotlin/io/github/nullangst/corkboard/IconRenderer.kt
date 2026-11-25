@@ -65,7 +65,11 @@ object IconRenderer {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
 
     /** Memory only. The disk cache keys carry every setting, so stale files are just never asked for again. */
-    fun clear() = cache.evictAll()
+    fun clear() {
+        cache.evictAll()
+        // The system shape can change with a theme overlay, which arrives as a configuration change.
+        unitPaths.clear()
+    }
 
     fun clearPackage(pkg: String) {
         for (k in cache.snapshot().keys) if (k.contains(pkg)) cache.remove(k)
@@ -78,7 +82,12 @@ object IconRenderer {
 
     // ---- Shapes, defined on a 100 x 100 square ----
 
-    private fun unitPath(name: String): Path? {
+    /** Unit shapes, built once each: "system" asks the framework for its mask, which isn't free. */
+    private val unitPaths = HashMap<String, Path?>()
+
+    private fun unitPath(name: String): Path? = unitPaths.getOrPut(name) { buildUnitPath(name) }?.let { Path(it) }
+
+    private fun buildUnitPath(name: String): Path? {
         val p = Path()
         when (name) {
             "none" -> return null
@@ -122,8 +131,25 @@ object IconRenderer {
 
     fun customBitmap(s: IconSettings?): Bitmap? {
         if (s?.source != "custom") return null
-        val f = s.file ?: return null
-        return BitmapFactory.decodeFile(File(Store.filesDir, f).path)
+        return decodeStored(Store.iconFile(s.file))
+    }
+
+    /**
+     * Decodes a stored icon image. Files can come from a backup, so a huge image is sampled down on
+     * the way in instead of being decoded whole, which could crash the launcher on every start.
+     */
+    private fun decodeStored(f: File?): Bitmap? {
+        if (f == null || !f.isFile) return null
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(f.path, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+            var sample = 1
+            while (max(bounds.outWidth, bounds.outHeight) / sample > CUSTOM_MAX_PX * 2) sample *= 2
+            BitmapFactory.decodeFile(f.path, BitmapFactory.Options().apply { inSampleSize = sample })
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     private fun appSource(ctx: Context, app: AppInfo): Drawable? = try {
@@ -180,10 +206,7 @@ object IconRenderer {
         }
     }
 
-    fun monoBitmap(s: IconSettings?): Bitmap? {
-        val f = s?.monoFile ?: return null
-        return BitmapFactory.decodeFile(File(Store.filesDir, f).path)
-    }
+    fun monoBitmap(s: IconSettings?): Bitmap? = decodeStored(Store.iconFile(s?.monoFile))
 
     /**
      * The mask a themed icon is drawn from, white on transparent, or null to draw the normal icon.
@@ -238,7 +261,7 @@ object IconRenderer {
             // their transparent surroundings and white plates count as background.
             c.drawColor(Color.WHITE)
             val b = toBitmap(d, size)
-            val content = contentBounds(b)
+            val content = contentBounds(pixels(b), size, size)
             val t = size * 0.8f
             val k = t / max(content.width(), content.height()).coerceAtLeast(1)
             val w = content.width() * k
@@ -427,7 +450,7 @@ object IconRenderer {
             else -> {
                 val bmp = toBitmap(src, size)
                 val px = pixels(bmp)
-                val content = contentBounds(bmp)
+                val content = contentBounds(px, size, size)
                 val fill = when (s.treatment) {
                     "fill" -> true
                     "fit" -> false
@@ -531,14 +554,12 @@ object IconRenderer {
         }
     }
 
-    private fun contentBounds(b: Bitmap): Rect {
-        val w = b.width
-        val px = pixels(b)
+    private fun contentBounds(px: IntArray, w: Int, h: Int): Rect {
         var l = w
-        var t = b.height
+        var t = h
         var r = -1
         var btm = -1
-        for (y in 0 until b.height) for (x in 0 until w) {
+        for (y in 0 until h) for (x in 0 until w) {
             if (px[y * w + x] ushr 24 > 16) {
                 if (x < l) l = x
                 if (x > r) r = x
@@ -546,7 +567,7 @@ object IconRenderer {
                 if (y > btm) btm = y
             }
         }
-        return if (r < 0) Rect(0, 0, w, b.height) else Rect(l, t, r + 1, btm + 1)
+        return if (r < 0) Rect(0, 0, w, h) else Rect(l, t, r + 1, btm + 1)
     }
 
     /**
@@ -600,9 +621,12 @@ object IconRenderer {
         return out
     }
 
+    /** Picked images are stored at most this many pixels on their long side. */
+    const val CUSTOM_MAX_PX = 432
+
     /** Downscales a picked image to 432 x 432 at most and stores it as a PNG. Returns "icons/<name>". */
     fun saveCustom(src: Bitmap, name: String): String {
-        val k = min(1f, 432f / max(src.width, src.height))
+        val k = min(1f, CUSTOM_MAX_PX.toFloat() / max(src.width, src.height))
         val scaled = if (k < 1f) {
             Bitmap.createScaledBitmap(src, (src.width * k).roundToInt().coerceAtLeast(1), (src.height * k).roundToInt().coerceAtLeast(1), true)
         } else {
@@ -633,8 +657,18 @@ object DiskIcons {
 
     private fun capBytes(): Long = Store.layout.settings.diskCacheMb * 1024L * 1024L
 
-    private fun hash(key: String): String =
-        MessageDigest.getInstance("SHA-1").digest(key.toByteArray()).joinToString("") { "%02x".format(it) }
+    private val hex = "0123456789abcdef".toCharArray()
+
+    private fun hash(key: String): String {
+        val d = MessageDigest.getInstance("SHA-1").digest(key.toByteArray())
+        val out = CharArray(d.size * 2)
+        for (i in d.indices) {
+            val v = d[i].toInt() and 0xFF
+            out[i * 2] = hex[v ushr 4]
+            out[i * 2 + 1] = hex[v and 0x0F]
+        }
+        return String(out)
+    }
 
     private fun file(ctx: Context, key: String, pkg: String) = File(dir(ctx), "$pkg-${hash(key)}.png")
 

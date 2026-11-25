@@ -73,6 +73,9 @@ class WidgetFrame(ctx: Context, var item: WidgetItem) : FrameLayout(ctx) {
                 fired = false
                 downX = ev.x
                 downY = ev.y
+                // DOWN can arrive twice (intercept, then onTouchEvent when no child takes it): one timer only,
+                // or the long-press fires twice and the second one opens a menu over the drag.
+                removeCallbacks(longPress)
                 postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
             }
             MotionEvent.ACTION_MOVE -> if (hypot(ev.x - downX, ev.y - downY) > slop) removeCallbacks(longPress)
@@ -142,6 +145,9 @@ class Widgets(private val act: HomeActivity) {
         if (item.widgetId >= 0) frames[item.widgetId]?.let { f ->
             (f.parent as? ViewGroup)?.removeView(f)
             f.item = item
+            // A drag hides the view it lifts. Icons are rebuilt after a drop, but this frame is reused,
+            // so without this a widget moved to a new spot stayed invisible until the launcher restarted.
+            f.visibility = View.VISIBLE
             return f
         }
         val frame = WidgetFrame(act, item)
@@ -173,6 +179,31 @@ class Widgets(private val act: HomeActivity) {
         } else {
             @Suppress("DEPRECATION")
             hv.updateAppWidgetSize(null, w.toInt(), h.toInt(), w.toInt(), h.toInt())
+        }
+    }
+
+    /** Drops cached views for widgets no longer on the home screen. */
+    fun retain(ids: Set<Int>) {
+        frames.keys.retainAll(ids)
+    }
+
+    /**
+     * Deletes widget ids this host still holds that no home screen item uses: left behind when a
+     * setup was cut off (the launcher restarted mid-way), and otherwise kept alive by Android forever.
+     */
+    fun sweep() {
+        val used = Store.layout.allItems().filterIsInstance<WidgetItem>().map { it.widgetId }.toHashSet()
+        val held = try {
+            host.appWidgetIds
+        } catch (_: Exception) {
+            return
+        }
+        for (id in held) {
+            if (id in used || id == pending?.id) continue
+            try {
+                host.deleteAppWidgetId(id)
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -345,6 +376,15 @@ class Widgets(private val act: HomeActivity) {
         fun appLabel(pkg: String, serial: Long) =
             Apps.apps.values.firstOrNull { it.key.pkg == pkg && it.key.user == serial }?.label ?: pkg
         val labels = providers.associateWith { it.loadLabel(act.packageManager)?.toString().orEmpty() }
+        // Loaded once per picker, not on every keystroke in the search box.
+        val previews = HashMap<AppWidgetProviderInfo, android.graphics.drawable.Drawable?>()
+        fun previewOf(info: AppWidgetProviderInfo) = previews.getOrPut(info) {
+            try {
+                info.loadPreviewImage(act, 0) ?: info.loadIcon(act, 0)
+            } catch (_: Exception) {
+                null
+            }
+        }
         val cellW = act.pageCellW()
         val cellH = act.pageCellH()
         val cols = Store.layout.settings.columns
@@ -388,13 +428,7 @@ class Widgets(private val act: HomeActivity) {
                         adjustViewBounds = true
                         maxHeight = (110 * d).toInt()
                         maxWidth = (150 * d).toInt()
-                        setImageDrawable(
-                            try {
-                                info.loadPreviewImage(act, 0) ?: info.loadIcon(act, 0)
-                            } catch (_: Exception) {
-                                null
-                            },
-                        )
+                        setImageDrawable(previewOf(info))
                     }
                     row.addView(preview, LinearLayout.LayoutParams((150 * d).toInt(), ViewGroup.LayoutParams.WRAP_CONTENT))
                     row.addView(TextView(act).apply {

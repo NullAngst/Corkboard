@@ -43,6 +43,7 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.OverScroller
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import android.window.OnBackInvokedCallback
@@ -219,6 +220,8 @@ class HomeActivity : Activity() {
     private lateinit var dropBar: LinearLayout
     private lateinit var dropRemove: TextView
     private lateinit var dropUninstall: TextView
+    private val appsListener: () -> Unit = { if (drag == null) rebind() else rebindPending = true }
+    private val shortcutsListener: () -> Unit = { if (drag == null) rebind() }
 
     // ---- Lifecycle ----
 
@@ -234,9 +237,10 @@ class HomeActivity : Activity() {
         widgets = Widgets(this)
         buildViews()
         setContentView(root)
-        Apps.listener = { if (drag == null) rebind() else rebindPending = true }
-        Apps.shortcutsListener = { if (drag == null) rebind() }
+        Apps.listener = appsListener
+        Apps.shortcutsListener = shortcutsListener
         Apps.reconcile()
+        widgets.sweep()
         rebind()
         onOverlayChanged()
     }
@@ -294,8 +298,9 @@ class HomeActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Apps.listener = null
-        Apps.shortcutsListener = null
+        // Only clear what this instance set: a recreated home screen may already have put its own.
+        if (Apps.listener === appsListener) Apps.listener = null
+        if (Apps.shortcutsListener === shortcutsListener) Apps.shortcutsListener = null
         handler.removeCallbacksAndMessages(null)
     }
 
@@ -465,7 +470,10 @@ class HomeActivity : Activity() {
         dots.count = l.pages.size
         dots.current = workspace.current
         drawer.applyTheme()
-        folderPanel?.build()
+        widgets.retain(l.allItems().filterIsInstance<WidgetItem>().map { it.widgetId }.toHashSet())
+        // An open folder can stop existing underneath (an app in it uninstalled, leaving one): close it
+        // rather than keep showing, and saving into, a folder that's no longer on the home screen.
+        folderPanel?.let { p -> if (l.allItems().any { it === p.folder }) p.build() else closeFolder() }
         updateBanner()
     }
 
@@ -670,14 +678,29 @@ class HomeActivity : Activity() {
         val maxW = (280 * d).roundToInt()
         card.measure(View.MeasureSpec.makeMeasureSpec(maxW, View.MeasureSpec.AT_MOST), View.MeasureSpec.UNSPECIFIED)
         val cw = card.measuredWidth
-        val ch = card.measuredHeight
         val m = (8 * d).roundToInt()
         val screenW = root.width
         val screenH = root.height
+        // A long menu (four shortcuts plus every action, in landscape) scrolls instead of running off screen.
+        val avail = (screenH - bars.top - bars.bottom - 2 * m).coerceAtLeast(m * 6)
+        val ch = minOf(card.measuredHeight, avail)
+        val holder = ScrollView(this).apply {
+            background = card.background
+            elevation = card.elevation
+            clipToOutline = true
+            isVerticalScrollBarEnabled = card.measuredHeight > avail
+        }
+        card.background = null
+        card.elevation = 0f
+        holder.addView(card)
         val x = (anchor.centerX() - cw / 2f).roundToInt().coerceIn(m, (screenW - cw - m).coerceAtLeast(m))
         val above = anchor.top - ch - m
-        val y = if (above > bars.top + m) above.roundToInt() else (anchor.bottom + m).roundToInt().coerceAtMost((screenH - ch - m).coerceAtLeast(m))
-        frame.addView(card, FrameLayout.LayoutParams(cw, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+        val y = if (above > bars.top + m) {
+            above.roundToInt()
+        } else {
+            (anchor.bottom + m).roundToInt().coerceAtMost((screenH - bars.bottom - ch - m).coerceAtLeast(bars.top + m))
+        }
+        frame.addView(holder, FrameLayout.LayoutParams(cw, ch).apply {
             leftMargin = x
             topMargin = y
         })
@@ -1097,7 +1120,9 @@ class HomeActivity : Activity() {
         } else {
             null
         }
-        val folderable = st.isApp && w == 1 && h == 1 && (occupant is AppItem || occupant is FolderItem) &&
+        // An app held over another copy of itself makes no folder: that would be a folder of one app twice.
+        val folderable = st.isApp && w == 1 && h == 1 &&
+            ((occupant is AppItem && occupant.key != st.key) || occupant is FolderItem) &&
             grid.inInnerHalf(lx, ly, occupant.x, occupant.y)
         if (folderable) {
             if (st.folderCandidate !== occupant) {
@@ -1639,6 +1664,12 @@ class HomeActivity : Activity() {
         }
 
         override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = track(ev)
+
+        override fun onDetachedFromWindow() {
+            super.onDetachedFromWindow()
+            vt?.recycle()
+            vt = null
+        }
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouchEvent(ev: MotionEvent): Boolean {
