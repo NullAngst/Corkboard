@@ -8,6 +8,7 @@ package io.github.nullangst.corkboard
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Configuration
+import android.os.Build
 import android.graphics.drawable.GradientDrawable
 
 /** Colors for the launcher's own surfaces: drawer, folder panels, menus, picker, edit icon, settings. */
@@ -32,7 +33,11 @@ class Palette(
 }
 
 object Themes {
-    val ids = listOf("system", "light", "dark", "verdigris", "kawaii_light", "kawaii_dark")
+    /** Material You needs Android 12's wallpaper color palettes, so it's only offered from there. */
+    val ids: List<String>
+        get() = listOf("system") +
+            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) listOf("material") else emptyList()) +
+            listOf("light", "dark", "verdigris", "kawaii_light", "kawaii_dark")
 
     fun name(ctx: Context, id: String): String = ctx.getString(
         when (id) {
@@ -41,6 +46,7 @@ object Themes {
             "verdigris" -> R.string.theme_verdigris
             "kawaii_light" -> R.string.theme_kawaii_light
             "kawaii_dark" -> R.string.theme_kawaii_dark
+            "material" -> R.string.theme_material
             else -> R.string.theme_system
         },
     )
@@ -74,9 +80,54 @@ object Themes {
         "verdigris" -> verdigris
         "kawaii_light" -> kawaiiLight
         "kawaii_dark" -> kawaiiDark
-        else -> {
-            val night = ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-            if (night == Configuration.UI_MODE_NIGHT_YES) dark else light
+        "material" -> material(ctx) ?: if (systemDark(ctx)) dark else light
+        else -> if (systemDark(ctx)) dark else light
+    }
+
+    private fun systemDark(ctx: Context) =
+        ctx.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+
+    /**
+     * Material You: the colors Android derives from the wallpaper, the same ones Pixel Launcher and
+     * the system use, light or dark with the system. Mapped onto the Material 3 color roles:
+     * background and surface from the neutral palette, text and dimmed text from the neutrals,
+     * accent from the primary palette. Read fresh each time, so a new wallpaper's colors show up
+     * at the next redraw.
+     */
+    private fun material(ctx: Context): Palette? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
+        val r = ctx.resources
+        fun col(id: Int) = r.getColor(id, null)
+        return try {
+            if (systemDark(ctx)) {
+                Palette(
+                    true,
+                    bg = col(android.R.color.system_neutral1_900),
+                    surface = col(android.R.color.system_neutral1_800),
+                    text = col(android.R.color.system_neutral1_100),
+                    textDim = col(android.R.color.system_neutral2_200),
+                    accent = col(android.R.color.system_accent1_200),
+                    onAccent = col(android.R.color.system_accent1_800),
+                    panel = col(android.R.color.system_neutral1_800) and 0x00FFFFFF or c(0xCC000000),
+                    scrim = c(0x88000000),
+                    danger = c(0xFFFFB4AB),
+                )
+            } else {
+                Palette(
+                    false,
+                    bg = col(android.R.color.system_neutral1_50),
+                    surface = col(android.R.color.system_neutral1_10),
+                    text = col(android.R.color.system_neutral1_900),
+                    textDim = col(android.R.color.system_neutral2_700),
+                    accent = col(android.R.color.system_accent1_600),
+                    onAccent = col(android.R.color.system_accent1_0),
+                    panel = col(android.R.color.system_neutral1_50) and 0x00FFFFFF or c(0xD9000000),
+                    scrim = c(0x66000000),
+                    danger = c(0xFFBA1A1A),
+                )
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

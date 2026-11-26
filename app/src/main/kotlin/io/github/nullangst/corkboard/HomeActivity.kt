@@ -554,6 +554,13 @@ class HomeActivity : Activity() {
      * system's back-to-home animation. It closes whatever is open, or does nothing.
      */
     fun onOverlayChanged() {
+        // With the drawer, a folder or a menu over the home screen, TalkBack shouldn't reach the
+        // icons underneath: they can't be tapped through it anyway.
+        homeCol.importantForAccessibility = if (drawer.isOpen || folderPanel != null || overlay != null) {
+            View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        } else {
+            View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+        }
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || backCallback != null) return
         val cb = OnBackInvokedCallback { handleBack() }
         onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, cb)

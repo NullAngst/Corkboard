@@ -120,6 +120,7 @@
     <string name="theme_verdigris">Verdigris</string>
     <string name="theme_kawaii_light">Kawaii Hell</string>
     <string name="theme_kawaii_dark">Kawaii Dunkel</string>
+    <string name="theme_material">Material You (Hintergrundfarben)</string>
     <string name="s_default_home">Standard-Startbildschirm</string>
     <string name="s_set_default">Als Standard-Startbildschirm-App festlegen</string>
     <string name="s_set_default_sub">Wird für App-Verknüpfungen, angepinnte Verknüpfungen und das Pausieren von Arbeits-Apps benötigt</string>

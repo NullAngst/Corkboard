@@ -19,6 +19,7 @@ import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Point
+import android.graphics.Rect
 import android.graphics.RectF
 import android.os.Build
 import android.os.Bundle
@@ -599,6 +600,25 @@ class ResizeOverlay(
         for ((_, p) in handles()) canvas.drawCircle(p.first, p.second, 8 * d, dot)
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        keepGesturesOff()
+    }
+
+    /**
+     * With gesture navigation, a swipe starting near the left or right screen edge is Android's
+     * back gesture. Each handle's grab area is kept clear of it, so a handle by the edge still
+     * drags. Android allows up to 200dp of such areas per edge; four handles of 64dp fit.
+     */
+    private fun keepGesturesOff() {
+        val r = (32 * d).roundToInt()
+        systemGestureExclusionRects = handles().map { (_, p) ->
+            val x = p.first.roundToInt()
+            val y = p.second.roundToInt()
+            Rect(x - r, y - r, x + r, y + r)
+        }
+    }
+
     private fun free(nx: Int, ny: Int, nw: Int, nh: Int): Boolean {
         val g = Store.layout.occupancy(others, grid.cols, grid.rows)
         return Layout.fits(g, nx, ny, nw, nh)
@@ -638,6 +658,7 @@ class ResizeOverlay(
                     y = ny
                     w = nw
                     h = nh
+                    keepGesturesOff()
                     invalidate()
                 }
             }

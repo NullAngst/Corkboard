@@ -1,5 +1,16 @@
 # Changes
 
+2026.11.26 - Bug fixes, Material You theme
+
+* Widget resize: the handles near the left and right screen edges no longer trigger Android's back gesture under gesture navigation. Their grab areas are kept out of the edge gesture zone
+* Private space: the Settings button in the Private tab now opens Android's private space settings (Android 16+). Android was silently dropping the launch, since the launcher has to say it allows that kind of start
+* Private space: if Settings can't be opened, a short message says so, instead of nothing happening
+* New theme: Material You (Android 12+). The launcher's own surfaces take your wallpaper's colors from Android, light or dark with the system, like Pixel Launcher
+* TalkBack can no longer reach home screen icons hidden behind the open drawer, a folder or a menu
+* README: notes on private space auto-lock, which Android itself handles
+
+Reasons for changes: reported bugs (resize near the screen edges, the Settings button doing nothing) and a requested theme. The TalkBack issue turned up while testing on the emulator.
+
 2026.11.26 - UX tweak
 
 * The coming-home animation is a little quicker: each icon rises in 240 ms instead of 300, and rows follow each other 18 ms apart instead of 22. With a full grid the motion ends about a fifth sooner. The wait for Android's own close transition is unchanged

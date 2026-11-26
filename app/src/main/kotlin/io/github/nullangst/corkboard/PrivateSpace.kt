@@ -6,10 +6,12 @@
 package io.github.nullangst.corkboard
 
 import android.app.Activity
+import android.app.ActivityOptions
 import android.content.pm.LauncherUserInfo
 import android.os.Build
 import android.os.UserHandle
 import android.os.UserManager
+import android.widget.Toast
 
 /**
  * Android 15's private space, off by default (Settings > Privacy).
@@ -69,13 +71,20 @@ object PrivateSpace {
     /** Android 16 lets a launcher open the private space settings; Android 15 keeps them to itself. */
     val canOpenSettings get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
 
-    /** Android's private space settings. */
+    /**
+     * Android's private space settings. Android hands the launcher a sealed intent for it, and
+     * since Android 14 starting such an intent counts as a background start unless the sender
+     * says it allows one while it is on screen. Without that, Android drops the launch silently.
+     */
     fun openSettings(act: Activity) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return
+        val opts = ActivityOptions.makeBasic()
+            .setPendingIntentBackgroundActivityStartMode(ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE)
         try {
-            val sender = Apps.la.privateSpaceSettingsIntent ?: return
-            act.startIntentSender(sender, null, 0, 0, 0)
+            val sender = Apps.la.privateSpaceSettingsIntent ?: throw IllegalStateException("no settings intent")
+            act.startIntentSender(sender, null, 0, 0, 0, opts.toBundle())
         } catch (_: Exception) {
+            Toast.makeText(act, R.string.cant_open_app, Toast.LENGTH_SHORT).show()
         }
     }
 }
