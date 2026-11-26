@@ -1,5 +1,13 @@
 # Changes
 
+2026.11.26 - Widget resize fix
+
+* A widget made as wide as the grid can be resized back down again. Its minimum size never counts as more than the size it was placed at, the same rule Pixel Launcher (Launcher3) follows
+* A widget's minimum resize size is ignored when it is larger than its minimum size, as Android's documentation says it should be
+* The widget size math moved into its own file, WidgetSpans.kt, with unit tests
+
+Reasons for changes: reported bug. A widget whose minimum width needs more cells on Corkboard's grid than the app expected was placed at its default size, could be grown to full width, and then couldn't be made smaller again. The handles took the touch but had nowhere smaller to go.
+
 2026.11.26 - Bug fixes, Material You theme
 
 * Widget resize: the handles near the left and right screen edges no longer trigger Android's back gesture under gesture navigation. Their grab areas are kept out of the edge gesture zone

@@ -39,7 +39,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
@@ -220,27 +219,30 @@ class Widgets(private val act: HomeActivity) {
 
     // ---- Span math ----
 
-    private fun cells(px: Int, cell: Float, max: Int) = ceil(px / cell).toInt().coerceIn(1, max)
-
     fun span(info: AppWidgetProviderInfo, cellW: Float, cellH: Float, cols: Int, rows: Int): Point {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && info.targetCellWidth > 0 && info.targetCellHeight > 0) {
-            return Point(info.targetCellWidth.coerceAtMost(cols), info.targetCellHeight.coerceAtMost(rows))
+        // Target cells exist from Android 12, and only count when the widget gives both.
+        val target = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && info.targetCellWidth > 0 && info.targetCellHeight > 0) {
+            Point(info.targetCellWidth, info.targetCellHeight)
+        } else {
+            Point(0, 0)
         }
-        return Point(cells(info.minWidth, cellW, cols), cells(info.minHeight, cellH, rows))
+        return Point(
+            WidgetSpans.default(target.x, info.minWidth, cellW, cols),
+            WidgetSpans.default(target.y, info.minHeight, cellH, rows),
+        )
     }
 
-    private fun minSpan(info: AppWidgetProviderInfo, cellW: Float, cellH: Float, cols: Int, rows: Int) = Point(
-        cells(if (info.minResizeWidth > 0) info.minResizeWidth else info.minWidth, cellW, cols),
-        cells(if (info.minResizeHeight > 0) info.minResizeHeight else info.minHeight, cellH, rows),
-    )
+    private fun minSpan(info: AppWidgetProviderInfo, cellW: Float, cellH: Float, cols: Int, rows: Int): Point {
+        val def = span(info, cellW, cellH, cols, rows)
+        return Point(
+            WidgetSpans.min(info.minWidth, info.minResizeWidth, def.x, cellW, cols),
+            WidgetSpans.min(info.minHeight, info.minResizeHeight, def.y, cellH, rows),
+        )
+    }
 
     private fun maxSpan(info: AppWidgetProviderInfo, cellW: Float, cellH: Float, cols: Int, rows: Int): Point {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val w = if (info.maxResizeWidth > 0) cells(info.maxResizeWidth, cellW, cols) else cols
-            val h = if (info.maxResizeHeight > 0) cells(info.maxResizeHeight, cellH, rows) else rows
-            return Point(w, h)
-        }
-        return Point(cols, rows)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return Point(cols, rows)
+        return Point(WidgetSpans.max(info.maxResizeWidth, cellW, cols), WidgetSpans.max(info.maxResizeHeight, cellH, rows))
     }
 
     // ---- Bind and setup ----
