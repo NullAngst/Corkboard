@@ -1,5 +1,12 @@
 # Changes
 
+2026.11.26 - UX tweak
+
+* The coming-home animation is a little quicker: each icon rises in 240 ms instead of 300, and rows follow each other 18 ms apart instead of 22. With a full grid the motion ends about a fifth sooner. The wait for Android's own close transition is unchanged
+* The timings are named constants at the top of EnterAnimation.kt, so they're easy to adjust
+
+Reasons for changes: the animation felt slightly slow after pressing Home.
+
 2026.11.25 - Privacy page, notification dots, private space, undo, letter strip, code split into feature files
 
 * New Settings, Privacy page: a switch for each feature that needs extra access, all off until turned on, each saying why it's off. Below them, every permission the installed app asks Android for, read from the app itself

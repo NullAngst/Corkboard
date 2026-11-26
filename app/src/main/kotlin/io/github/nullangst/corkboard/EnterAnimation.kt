@@ -14,6 +14,13 @@ import android.view.animation.DecelerateInterpolator
 /** Longest the coming-home icons wait for the system's close transition before they start anyway. */
 const val ENTER_WAIT_MS = 220L
 
+/** How long each icon takes to rise into place. */
+private const val ENTER_DURATION_MS = 240L
+
+/** The dock starts first, then each row up waits this much longer than the row below it. */
+private const val ENTER_FIRST_ROW_MS = 24L
+private const val ENTER_ROW_STEP_MS = 18L
+
 /**
  * Coming back from an app: icons, widgets and the dock rise a little, grow from 88% and fade in,
  * bottom rows first. Skipped when Android's "Remove animations" is on.
@@ -51,7 +58,7 @@ class EnterAnimation(private val act: HomeActivity) {
             val lp = v.layoutParams as? CellGrid.LP ?: continue
             // Bottom rows first, rising toward the top, right behind the dock.
             val fromBottom = (rows - (lp.y + lp.h)).coerceAtLeast(0)
-            out.add(v to 30L + fromBottom * 22L)
+            out.add(v to ENTER_FIRST_ROW_MS + fromBottom * ENTER_ROW_STEP_MS)
         }
         return out
     }
@@ -81,7 +88,7 @@ class EnterAnimation(private val act: HomeActivity) {
                 go = null
                 for ((v, delay) in list) {
                     v.animate().alpha(1f).scaleX(1f).scaleY(1f).translationY(0f)
-                        .setStartDelay(delay).setDuration(300).setInterpolator(DecelerateInterpolator(1.8f))
+                        .setStartDelay(delay).setDuration(ENTER_DURATION_MS).setInterpolator(DecelerateInterpolator(1.8f))
                         .start()
                 }
             }
