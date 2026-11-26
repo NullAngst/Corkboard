@@ -120,6 +120,7 @@
     <string name="theme_verdigris">Verdigris</string>
     <string name="theme_kawaii_light">Kawaii claro</string>
     <string name="theme_kawaii_dark">Kawaii oscuro</string>
+    <string name="theme_material">Material You (colores del fondo de pantalla)</string>
     <string name="s_default_home">Inicio predeterminado</string>
     <string name="s_set_default">Establecer como aplicación de inicio predeterminada</string>
     <string name="s_set_default_sub">Lo necesitan los accesos directos de aplicaciones, los accesos fijados y pausar las aplicaciones de trabajo</string>

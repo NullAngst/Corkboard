@@ -34,7 +34,7 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 - Old square icons that Android parks inside a white circle get scaled up to fill the shape instead.
 - Work profile: badged icons, Work tab, pause work apps.
 - Hide apps, rename labels, lock the layout.
-- Themes for the launcher's own surfaces: Follow system, Light, Dark, Verdigris, Kawaii Light, Kawaii Dark.
+- Themes for the launcher's own surfaces: Follow system, Material You (Android 12+, your wallpaper's colors, light or dark with the system), Light, Dark, Verdigris, Kawaii Light, Kawaii Dark.
 - Backup and restore of the layout and custom icons to one zip file, plus automatic backups to a folder you pick.
 - Haptics, with a master switch and a switch per moment.
 - Drag an icon to the top of the screen to Remove it, or Uninstall the app.
@@ -76,7 +76,7 @@ While you drag an icon, a bar appears at the top of the screen. Drop on **Remove
 Launcher settings, **Privacy** has a switch for each feature that needs extra access, all off until you turn them on, and the list of every permission Corkboard asks Android for, read from the installed app.
 
 - **Notification dots** need Notification access, which Android grants as read-everything. Corkboard only reads which app each notification is from, keeps that in memory, and never stores it. Turning the switch on walks you to Android's Notification access screen. **Dot color** picks between a color from the app icon and the theme accent.
-- **Private space** shows your Android 15+ private space in a **Private** tab in the drawer, with Unlock, Lock and Android's private space settings. Its apps never go on the home screen, in folders, in backups or in the icon cache. It needs Corkboard to be the default home app.
+- **Private space** shows your Android 15+ private space in a **Private** tab in the drawer, with Unlock, Lock and, on Android 16+, **Settings** for Android's private space settings (Android 15 doesn't let other home apps open them; use Settings, Security & privacy, Private space there). Its apps never go on the home screen, in folders, in backups or in the icon cache. It needs Corkboard to be the default home app. Locking automatically when the phone locks is Android's own setting, under private space settings, **Lock private space automatically**; Android does the locking, whichever home app you use.
 
 [PRIVACY.md](PRIVACY.md) has the details.
 

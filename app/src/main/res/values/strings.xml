@@ -122,6 +122,7 @@
     <string name="theme_verdigris">Verdigris</string>
     <string name="theme_kawaii_light">Kawaii Light</string>
     <string name="theme_kawaii_dark">Kawaii Dark</string>
+    <string name="theme_material">Material You (wallpaper colors)</string>
     <string name="s_default_home">Default home</string>
     <string name="s_set_default">Set as default home app</string>
     <string name="s_set_default_sub">App shortcuts, pinned shortcuts and pausing work apps need this</string>

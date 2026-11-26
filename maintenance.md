@@ -54,7 +54,7 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
    - Install and uninstall an app: it appears on the home screen and drawer, then disappears from both.
    - Drag an app onto another app, hold, drop: a folder forms. Drag one back out.
    - Drag an app onto an occupied cell: neighbors slide aside.
-   - Add a widget, resize it, remove it.
+   - Add a widget, resize it, remove it. With gesture navigation on, put a widget against the left edge, open Resize, and drag its left handle: the widget resizes and Android's back gesture doesn't fire. Same for the right edge.
    - "Add to home screen" from Chrome: a pinned shortcut lands on the home screen.
    - Long-press an app: its app shortcuts show at the top of the menu.
    - If you have a work profile: Work tab, pause and resume work apps, greyed icons while paused.
@@ -96,8 +96,9 @@ When a string is added or changed in `values/strings.xml`, add or change it in `
 1. Settings, Privacy, the permission list: it is read from the installed app, so it can't lie. Check every entry has a plain description. An entry showing a raw permission name with "Not described in Corkboard yet" means a new permission got into the manifest. Find out why; if it belongs, add a description in `describe()` in `PrivacyActivity.kt` and in the tables in README.md and PRIVACY.md.
 2. Notification dots, off: Android's Notification access screen (Settings, Apps, Special app access) should not list Corkboard at all, since the listener is disabled. Turn dots on, allow access, and check a dot shows on an app with a notification and goes when the notification is cleared. Try both dot colors. Turn dots off: the dots go at once, and Corkboard drops off the Notification access screen again.
 3. Read the new Android version's notes for changes to `NotificationListenerService`, `Ranking.canShowBadge`, or how Notification access is granted.
-4. Private space (Android 15+): turn the switch on, open the drawer, use the Private tab's Lock and Unlock. Long-press a private app: no Edit icon, Rename, Hide or Add to home screen. Export a backup and check `layout.json` in it has no keys ending in the private profile's number (`adb shell dumpsys user` lists it). On Android 16+, set the private space to hide while locked and check the tab hides when locked.
+4. Private space (Android 15+): turn the switch on, open the drawer, use the Private tab's Lock and Unlock. Long-press a private app: no Edit icon, Rename, Hide or Add to home screen. Export a backup and check `layout.json` in it has no keys ending in the private profile's number (`adb shell dumpsys user` lists it). On Android 16+, set the private space to hide while locked and check the tab hides when locked, and tap the tab's Settings button: Android's private space settings should open. If nothing opens, check the new version's notes for changes to `ActivityOptions.setPendingIntentBackgroundActivityStartMode`.
 5. Read the new Android version's notes for changes to `LauncherApps.getLauncherUserInfo`, `LauncherUserInfo.getUserConfig`, `ACCESS_HIDDEN_PROFILES` and the private space settings intent.
+5.5. Lock private space automatically (Android's own setting, in private space settings) set to Every time device locks: unlock the private space, lock and unlock the phone, open the Private tab. It should show locked. Android does the locking; Corkboard only shows it.
 6. Undo: remove an icon, tap Undo, it's back in place. Remove a widget, tap Undo, the same widget is back (not a new setup). Remove one and wait: after five seconds the bar goes and the change is final.
 7. Long-press between two icons: the home menu opens. Long-press an icon: its menu opens.
 
