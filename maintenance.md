@@ -54,7 +54,7 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
    - Install and uninstall an app: it appears on the home screen and drawer, then disappears from both.
    - Drag an app onto another app, hold, drop: a folder forms. Drag one back out.
    - Drag an app onto an occupied cell: neighbors slide aside.
-   - Add a widget, resize it, remove it. With gesture navigation on, put a widget against the left edge, open Resize, and drag its left handle: the widget resizes and Android's back gesture doesn't fire. Same for the right edge.
+   - Add a widget, resize it, remove it. With gesture navigation on, put a widget against the left edge, open Resize, and drag its left handle: the widget resizes and Android's back gesture doesn't fire. Same for the right edge. Then make a widget as wide as the grid and resize it back down: it must shrink at least to the size it was placed at.
    - "Add to home screen" from Chrome: a pinned shortcut lands on the home screen.
    - Long-press an app: its app shortcuts show at the top of the menu.
    - If you have a work profile: Work tab, pause and resume work apps, greyed icons while paused.
