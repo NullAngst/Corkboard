@@ -73,7 +73,7 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
 
 ## 4.2.5. Coming home animation
 
-Open any app, then press Home. The dock and icons should rise and fade in, bottom rows first, after the app's close animation, and end exactly in place. Lock the screen with an app open, unlock, and check the icons are simply there (the entry is skipped when the screen was off). Turn on Remove animations in Accessibility and check it is skipped. If a new Android version makes the icons sit hidden too long before moving, lower `ENTER_WAIT_MS` in `EnterAnimation.kt`; it is the longest they wait for `onEnterAnimationComplete`.
+Open any app, then press Home. The dock and icons should rise and fade in, bottom rows first, after the app's close animation, and end exactly in place. Lock the screen with an app open, unlock, and check the icons are simply there (the entry is skipped when the screen was off). Turn on Remove animations in Accessibility and check it is skipped. If a new Android version makes the icons sit hidden too long before moving, lower `ENTER_WAIT_MS` in `EnterAnimation.kt`; it is the longest they wait for `onEnterAnimationComplete`. The speed of the motion itself is `ENTER_DURATION_MS` and the two row delays next to it.
 
 ## 4.3. Themed and generated icons
 
