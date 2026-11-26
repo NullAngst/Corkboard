@@ -7,7 +7,6 @@ package io.github.nullangst.corkboard
 
 import android.content.ComponentName
 import android.content.Context
-import android.graphics.Point
 import android.util.AtomicFile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -122,6 +121,16 @@ class Settings {
 
     /** "fingerprint|versionCode" of the build where the swipe-down hidden API failed. */
     var shadeBroken: String? = null
+
+    /**
+     * Privacy switches, see Settings > Privacy. Each is off until turned on, and each belongs to
+     * this phone: restoring a backup never turns one on.
+     */
+    var dots = false
+    var privateSpace = false
+
+    /** "icon" takes the dot color from the app's icon, "accent" uses the theme accent. */
+    var dotColor = "icon"
 }
 
 class Layout {
@@ -162,13 +171,13 @@ class Layout {
     }
 
     /** First free spot that fits w x h on [page], scanning left to right, top to bottom. */
-    fun freeSpot(page: Int, w: Int, h: Int): Point? {
+    fun freeSpot(page: Int, w: Int, h: Int): Cell? {
         val cols = settings.columns
         val rows = settings.rows
         if (page !in pages.indices || w > cols || h > rows) return null
         val g = occupancy(pages[page], cols, rows)
         for (y in 0..rows - h) for (x in 0..cols - w) {
-            if (fits(g, x, y, w, h)) return Point(x, y)
+            if (fits(g, x, y, w, h)) return Cell(x, y)
         }
         return null
     }
@@ -515,6 +524,9 @@ object Store {
                 put("lastAutoBackup", s.lastAutoBackup)
                 s.autoBackupError?.let { put("autoBackupError", it) }
                 s.shadeBroken?.let { put("shadeBroken", it) }
+                put("dots", s.dots)
+                put("dotColor", s.dotColor)
+                put("privateSpace", s.privateSpace)
             })
             put("pages", JSONArray().apply {
                 for (page in l.pages) put(JSONArray().apply { for (it in page) put(itemJson(it)) })
@@ -569,6 +581,9 @@ object Store {
             s.lastAutoBackup = j.optLong("lastAutoBackup", 0)
             s.autoBackupError = if (j.has("autoBackupError")) j.optString("autoBackupError") else null
             s.shadeBroken = if (j.has("shadeBroken")) j.optString("shadeBroken") else null
+            s.dots = j.optBoolean("dots", false)
+            s.dotColor = if (j.optString("dotColor") == "accent") "accent" else "icon"
+            s.privateSpace = j.optBoolean("privateSpace", false)
         }
         l.pages.clear()
         o.optJSONArray("pages")?.let { pages ->

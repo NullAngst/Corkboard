@@ -29,7 +29,10 @@ import java.text.Normalizer
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** Swipe-up drawer: search on top, Personal and Work tabs, every non-hidden app alphabetically. */
+/**
+ * Swipe-up drawer: search on top, Personal, Work and Private tabs, every non-hidden app
+ * alphabetically, and the letter strip down the side.
+ */
 @SuppressLint("ViewConstructor")
 class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private val d = resources.displayMetrics.density
@@ -37,9 +40,17 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private val tabs = LinearLayout(act)
     private val tabPersonal = TextView(act)
     private val tabWork = TextView(act)
+    private val tabPrivate = TextView(act)
     private val pause = TextView(act)
+    private val privBar = LinearLayout(act)
+    private val privLock = TextView(act)
+    private val privSettings = TextView(act)
+    private val lockedNote = TextView(act)
+    private val body = android.widget.FrameLayout(act)
     private val grid = GridView(act)
-    private var work = false
+    private val bubble = TextView(act)
+    private val scroller = LetterScroller(act, bubble) { grid.setSelection(it) }
+    private var tab = Apps.Tab.PERSONAL
     private var items: List<AppInfo> = emptyList()
     private val slop = ViewConfiguration.get(act).scaledTouchSlop
     private val fling = 600 * d
@@ -62,9 +73,10 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
             v.bitmap = IconRenderer.app(act, app.key)
             v.label = app.label
             v.greyed = Apps.isQuiet(app.key.user)
+            Dots.attach(v, listOf(Dots.keyOf(app.key)), act.pal)
             v.setOnClickListener { act.launchApp(v, app.key) }
             v.setOnLongClickListener {
-                act.startDrawerDrag(v, app)
+                act.dnd.startDrawerDrag(v, app)
                 true
             }
             return v
@@ -95,7 +107,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         })
 
         tabs.orientation = HORIZONTAL
-        for (t in listOf(tabPersonal, tabWork)) {
+        for (t in listOf(tabPersonal, tabWork, tabPrivate)) {
             t.gravity = Gravity.CENTER
             t.textSize = 15f
             val pad = (10 * d).roundToInt()
@@ -104,8 +116,10 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         }
         tabPersonal.text = context.getString(R.string.tab_personal)
         tabWork.text = context.getString(R.string.tab_work)
-        tabPersonal.setOnClickListener { setTab(false) }
-        tabWork.setOnClickListener { setTab(true) }
+        tabPrivate.text = context.getString(R.string.tab_private)
+        tabPersonal.setOnClickListener { setTab(Apps.Tab.PERSONAL) }
+        tabWork.setOnClickListener { setTab(Apps.Tab.WORK) }
+        tabPrivate.setOnClickListener { setTab(Apps.Tab.PRIVATE) }
         addView(tabs, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             setMargins((16 * d).roundToInt(), 0, (16 * d).roundToInt(), 0)
         })
@@ -119,21 +133,54 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         }
         addView(pause, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
+        // Private space: lock or unlock, and Android's private space settings.
+        privBar.orientation = HORIZONTAL
+        for (t in listOf(privLock, privSettings)) {
+            t.gravity = Gravity.CENTER
+            t.textSize = 14f
+            t.setPadding(0, (10 * d).roundToInt(), 0, (10 * d).roundToInt())
+            privBar.addView(t, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        privSettings.text = context.getString(R.string.private_settings)
+        privLock.setOnClickListener { PrivateSpace.setLocked(!PrivateSpace.locked()) }
+        privSettings.setOnClickListener { PrivateSpace.openSettings(act) }
+        addView(privBar, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
         grid.adapter = adapter
         grid.stretchMode = GridView.STRETCH_COLUMN_WIDTH
         grid.verticalSpacing = (4 * d).roundToInt()
         grid.isVerticalScrollBarEnabled = false
         grid.clipToPadding = false
         grid.selector = android.graphics.drawable.ColorDrawable(0)
-        addView(grid, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        body.addView(grid, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        lockedNote.gravity = Gravity.CENTER
+        lockedNote.textSize = 15f
+        lockedNote.text = context.getString(R.string.private_locked)
+        lockedNote.visibility = GONE
+        body.addView(lockedNote, android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        val strip = (24 * d).roundToInt()
+        scroller.setPadding(0, (8 * d).roundToInt(), 0, (8 * d).roundToInt())
+        body.addView(scroller, android.widget.FrameLayout.LayoutParams(strip, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END))
+        bubble.gravity = Gravity.CENTER
+        bubble.textSize = 28f
+        bubble.visibility = GONE
+        val bs = (64 * d).roundToInt()
+        body.addView(bubble, android.widget.FrameLayout.LayoutParams(bs, bs, Gravity.END or Gravity.TOP).apply { marginEnd = strip + (8 * d).roundToInt() })
+        addView(body, LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
     }
 
     private fun cellHeight() = (IconRenderer.sizePx(act) + 34 * d).roundToInt()
 
     fun setInsets(bars: Rect, ime: Int) {
         setPadding(bars.left, bars.top, bars.right, 0)
-        grid.setPadding(0, 0, 0, maxOf(bars.bottom, ime) + (8 * d).roundToInt())
+        bottomPad = maxOf(bars.bottom, ime) + (8 * d).roundToInt()
+        grid.setPadding(grid.paddingLeft, 0, grid.paddingRight, bottomPad)
+        scroller.setPadding(0, scroller.paddingTop, 0, bottomPad)
     }
+
+    private var bottomPad = 0
 
     fun applyTheme() {
         val pal = act.pal
@@ -145,35 +192,66 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         search.backgroundTintList = null
         search.compoundDrawableTintList = ColorStateList.valueOf(pal.textDim)
         grid.numColumns = Store.layout.settings.columns
+        scroller.color = pal.textDim
+        scroller.activeColor = pal.accent
+        bubble.setTextColor(pal.onAccent)
+        bubble.background = pal.card(act, pal.accent, 32f)
+        lockedNote.setTextColor(pal.textDim)
         refresh()
     }
 
-    private fun setTab(w: Boolean) {
-        work = w
+    private fun setTab(t: Apps.Tab) {
+        tab = t
+        grid.setSelection(0)
         refresh()
     }
 
     fun refresh() {
         val pal = act.pal
-        val hasWork = Apps.workUser() != null
-        if (!hasWork) work = false
-        tabs.visibility = if (hasWork) VISIBLE else GONE
-        tabPersonal.setTextColor(if (!work) pal.accent else pal.textDim)
-        tabWork.setTextColor(if (work) pal.accent else pal.textDim)
-        tabPersonal.background = if (!work) pal.card(act, pal.surface, 20f) else null
-        tabWork.background = if (work) pal.card(act, pal.surface, 20f) else null
         val wu = Apps.workUser()
-        val canPause = work && wu != null && Shortcuts.available()
+        val hasWork = wu != null
+        val hasPrivate = PrivateSpace.showTab()
+        if (tab == Apps.Tab.WORK && !hasWork) tab = Apps.Tab.PERSONAL
+        if (tab == Apps.Tab.PRIVATE && !hasPrivate) tab = Apps.Tab.PERSONAL
+        tabs.visibility = if (hasWork || hasPrivate) VISIBLE else GONE
+        tabWork.visibility = if (hasWork) VISIBLE else GONE
+        tabPrivate.visibility = if (hasPrivate) VISIBLE else GONE
+        for ((t, v) in listOf(Apps.Tab.PERSONAL to tabPersonal, Apps.Tab.WORK to tabWork, Apps.Tab.PRIVATE to tabPrivate)) {
+            v.setTextColor(if (tab == t) pal.accent else pal.textDim)
+            v.background = if (tab == t) pal.card(act, pal.surface, 20f) else null
+        }
+        val canPause = tab == Apps.Tab.WORK && wu != null && Shortcuts.available()
         pause.visibility = if (canPause) VISIBLE else GONE
         if (wu != null) pause.text = context.getString(if (Apps.isQuiet(Apps.serial(wu))) R.string.work_resume else R.string.work_pause)
         pause.setTextColor(pal.accent)
+        val priv = tab == Apps.Tab.PRIVATE
+        val locked = priv && PrivateSpace.locked()
+        privBar.visibility = if (priv) VISIBLE else GONE
+        privLock.text = context.getString(if (locked) R.string.private_unlock else R.string.private_lock)
+        privLock.setTextColor(pal.accent)
+        privSettings.setTextColor(pal.accent)
+        privSettings.visibility = if (PrivateSpace.canOpenSettings) VISIBLE else GONE
+        lockedNote.visibility = if (locked) VISIBLE else GONE
         filter()
     }
 
     private fun filter() {
         val q = fold(search.text.toString().trim())
-        items = Apps.drawerApps(work).filter { q.isEmpty() || fold(it.label).contains(q) }
+        val locked = tab == Apps.Tab.PRIVATE && PrivateSpace.locked()
+        items = if (locked) emptyList() else Apps.drawerApps(tab).filter { q.isEmpty() || fold(it.label).contains(q) }
         adapter.notifyDataSetChanged()
+        // The letter strip is for browsing the whole list, so it steps aside while searching.
+        scroller.setItems(items) { letterOf(it.label) }
+        val showStrip = q.isEmpty() && scroller.useful
+        scroller.visibility = if (showStrip) VISIBLE else GONE
+        val strip = if (showStrip) (24 * d).roundToInt() else 0
+        grid.setPadding(0, 0, strip, bottomPad)
+    }
+
+    /** The letter an app sorts under: its first letter without accents, or # for anything else. */
+    private fun letterOf(label: String): String {
+        val c = fold(label).trimStart().firstOrNull() ?: return "#"
+        return if (c.isLetter()) c.uppercaseChar().toString() else "#"
     }
 
     private val marks = Regex("\\p{Mn}+")
@@ -186,7 +264,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     fun beginOpen() {
         if (visibility != VISIBLE) {
             search.setText("")
-            work = false
+            tab = Apps.Tab.PERSONAL
             refresh()
             grid.setSelection(0)
         }
@@ -246,6 +324,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private var downX = 0f
     private var downY = 0f
     private var closing = false
+    private var onStrip = false
     private var vt: android.view.VelocityTracker? = null
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
@@ -254,13 +333,15 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
                 downX = ev.rawX
                 downY = ev.rawY
                 closing = false
+                // Dragging down the letter strip scrolls, it never closes the drawer.
+                onStrip = scroller.isShown && ev.x >= width - paddingRight - scroller.width
                 vt?.recycle()
                 vt = android.view.VelocityTracker.obtain()
             }
             MotionEvent.ACTION_MOVE -> {
                 val dy = ev.rawY - downY
                 val dx = ev.rawX - downX
-                if (!closing && dy > slop && dy > abs(dx) && !grid.canScrollVertically(-1)) closing = true
+                if (!closing && !onStrip && dy > slop && dy > abs(dx) && !grid.canScrollVertically(-1)) closing = true
             }
         }
         vt?.addMovement(ev)

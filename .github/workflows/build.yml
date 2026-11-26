@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  # Pushes to main and pull requests: debug APK and lint. Checks only, nothing is released.
+  # Pushes to main and pull requests: debug APK, lint and unit tests. Checks only, nothing is released.
   check:
     if: github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -30,14 +30,25 @@ jobs:
           cache: gradle
 
       # bash ./gradlew, since uploading through the GitHub web page drops the executable bit.
-      - name: Build debug APK and run lint
-        run: bash ./gradlew --no-daemon --stacktrace assembleDebug lintDebug
+      - name: Build debug APK, run lint and unit tests
+        run: bash ./gradlew --no-daemon --stacktrace assembleDebug lintDebug testDebugUnitTest
+
+      - name: Check the release build carries nothing but the Kotlin standard library
+        run: bash .github/scripts/check_runtime_deps.sh
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v7
         with:
           name: Corkboard-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Show failed tests
+        if: failure()
+        run: |
+          for f in app/build/test-results/testDebugUnitTest/*.xml; do
+            [ -f "$f" ] && grep -q '<failure' "$f" && cat "$f"
+          done
+          true
 
       - name: Show lint report
         if: failure()

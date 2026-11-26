@@ -1,5 +1,23 @@
 # Changes
 
+2026.11.25 - Privacy page, notification dots, private space, undo, letter strip, code split into feature files
+
+* New Settings, Privacy page: a switch for each feature that needs extra access, all off until turned on, each saying why it's off. Below them, every permission the installed app asks Android for, read from the app itself
+* Notification dots, off by default. They need Android's Notification access, which can read every notification; Corkboard reads only which app each one is from, keeps that in memory, and never stores it. The listener ships disabled, so Android can't connect to it until the switch is on. Dot color: from the app icon, or the theme accent
+* Private space (Android 15+), off by default. With it on, private apps show in a Private tab in the drawer with Unlock, Lock and, on Android 16+, Android's private space settings. They are never put on the home screen, in folders, in the layout file, in backups or in the icon cache. Respects Android 16's "hide when locked"
+* Restoring a backup never turns a privacy switch on
+* Undo bar after Remove, Remove from folder, Hide and drag to Remove, like Pixel Launcher. Deleting a widget, unpinning a shortcut and deleting a custom icon file wait until the bar is gone, so Undo brings back the same widget. It stays five seconds, or longer when Android's "Time to take action" accessibility setting asks
+* Long-pressing in the gaps between icons opens the home menu (Wallpaper, Widgets, Launcher settings), like Pixel Launcher. Only an icon and its label count as the icon
+* Widget settings in a widget's long-press menu, for widgets whose app supports setting them up again
+* Letter strip down the side of the app drawer: touch or drag to jump to a letter, with a bubble and a light tick per letter (its own haptics switch). Hidden while searching
+* The home screen code is split into one file per feature: HomeRoot (gestures), DragDrop, DropBar, Menus, Undo, EnterAnimation, Workspace, Reorder, IconView, PageDots, Shade, Ui. HomeActivity keeps only the views, lifecycle and launching
+* Unit tests for the reorder solver, layout repair and reading layout.json, hostile files included. They run on every pull request
+* The build check fails if the release APK carries any library besides the Kotlin standard library
+* New PRIVACY.md: what is stored where, what each privacy switch reads, and every permission
+* New strings in English, Spanish and German
+
+Reasons for changes: requested features, with privacy-respecting defaults: nothing that needs extra access is on until it's chosen. Splitting the code by feature makes each part small enough to read and audit on its own. The tests and the library check keep the two things most likely to break quietly (layout repair, no extra libraries) from regressing.
+
 2026.11.25 - Long-press fixes
 
 * Long-pressing an app, folder, shortcut or widget opens its menu right away, while the finger is still down, like Pixel Launcher. Let go to use the menu, or keep moving: the menu closes and the drag carries on. Before, the menu only appeared after letting go

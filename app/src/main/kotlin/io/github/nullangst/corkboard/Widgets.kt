@@ -108,6 +108,7 @@ class Widgets(private val act: HomeActivity) {
     companion object {
         const val REQ_BIND = 11
         const val REQ_CONFIG = 12
+        const val REQ_RECONFIG = 13
 
         fun errorBox(ctx: Context, text: String, onRemove: () -> Unit): View {
             val pal = Themes.palette(ctx)
@@ -335,6 +336,8 @@ class Widgets(private val act: HomeActivity) {
     }
 
     fun onResult(requestCode: Int, resultCode: Int): Boolean {
+        // Widget settings: the widget updates itself, nothing to do here.
+        if (requestCode == REQ_RECONFIG) return true
         val p = pending ?: return false
         when (requestCode) {
             REQ_BIND -> if (resultCode == Activity.RESULT_OK) configure(p) else cancel()
@@ -342,6 +345,22 @@ class Widgets(private val act: HomeActivity) {
             else -> return false
         }
         return true
+    }
+
+    /** The widget's app says it can be set up again after it is placed. */
+    fun canReconfigure(item: WidgetItem): Boolean {
+        if (item.widgetId < 0) return false
+        val info = awm.getAppWidgetInfo(item.widgetId) ?: return false
+        return info.configure != null && info.widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE != 0
+    }
+
+    /** Opens the widget's own settings screen, the same one it showed when it was added. */
+    fun reconfigure(item: WidgetItem) {
+        try {
+            host.startAppWidgetConfigureActivityForResult(act, item.widgetId, 0, REQ_RECONFIG, null)
+        } catch (_: Exception) {
+            Toast.makeText(act, R.string.cant_open_app, Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** Restored widget spots ask to be set up again with one tap each. */
@@ -366,7 +385,8 @@ class Widgets(private val act: HomeActivity) {
     fun showPicker() {
         val pal = act.pal
         val d = density
-        val providers = Apps.la.profiles.flatMap { u ->
+        // Private space widgets would put its apps on the home screen and in backups, so they aren't offered.
+        val providers = Apps.la.profiles.filter { !PrivateSpace.isPrivateProfile(it) }.flatMap { u ->
             try {
                 awm.getInstalledProvidersForProfile(u)
             } catch (_: Exception) {
@@ -441,7 +461,7 @@ class Widgets(private val act: HomeActivity) {
                         addFirstFree(info, cellW, cellH)
                     }
                     row.setOnLongClickListener { v ->
-                        act.startNewWidgetDrag(v, info, sp.x, sp.y)
+                        act.dnd.startNewWidgetDrag(v, info, sp.x, sp.y)
                         true
                     }
                     list.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {

@@ -33,8 +33,9 @@ object Haptics {
     const val REORDER = "reorder"
     const val PAGE = "page"
     const val REMOVE = "remove"
+    const val SCROLL = "scroll"
 
-    val triggers = listOf(DRAWER, LIFT, FOLDER, PLACE, REORDER, PAGE, REMOVE)
+    val triggers = listOf(DRAWER, LIFT, FOLDER, PLACE, REORDER, PAGE, REMOVE, SCROLL)
 
     enum class Fx { LIFT, TICK, LIGHT, CONFIRM, REJECT, THRESHOLD }
 
@@ -60,6 +61,7 @@ object Haptics {
         PLACE -> R.string.h_place
         REORDER -> R.string.h_reorder
         PAGE -> R.string.h_page
+        SCROLL -> R.string.h_scroll
         else -> R.string.h_remove
     }
 

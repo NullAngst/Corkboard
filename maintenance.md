@@ -4,12 +4,21 @@ Do this pass every couple of months, or right after a new Android release lands 
 
 ## 1. Merge Dependabot pull requests
 
-Dependabot watches the Android Gradle Plugin version in `build.gradle.kts`, the Gradle wrapper, and the GitHub Actions versions in `.github/workflows/build.yml`.
+Dependabot watches the Android Gradle Plugin version in `build.gradle.kts`, the two test libraries (JUnit and org.json) in `app/build.gradle.kts`, the Gradle wrapper, and the GitHub Actions versions in `.github/workflows/build.yml`.
 
 1. Open the repo's Pull requests tab.
 2. For each Dependabot PR, wait for the **build** check to go green, then merge it.
 3. If an AGP bump fails, read the AGP release notes for that version (developer.android.com/build/releases/gradle-plugin). Major AGP versions sometimes change the DSL. Fix `app/build.gradle.kts`, push to the PR branch, merge once green.
 4. If an Actions major version bump fails, check that action's release notes for renamed inputs.
+5. The test libraries never reach the APK, so a bump there can only break the unit tests. If one does, read that library's release notes, fix the test, merge once green.
+
+## 1.5. Unit tests and the library check
+
+The build check runs `testDebugUnitTest` and `.github/scripts/check_runtime_deps.sh` on every pull request.
+
+1. If a test fails after a change you meant to make, fix the test in the same pull request, and say why in `changes.md`. If it fails after a change you didn't expect to touch that code, the change broke something: fix the code.
+2. If the library check fails, something added a library to the release APK. Corkboard ships Android's framework and the Kotlin standard library only. Find what pulled it in with `bash ./gradlew :app:dependencies --configuration releaseRuntimeClasspath` and remove it. Only add it to the `allowed` line in the script if it is truly needed, and say why in `changes.md`.
+3. The tests live in `app/src/test/kotlin`. Add one when a bug turns up in the solver, layout repair or reading `layout.json`, so it can't come back.
 
 ## 2. Bump targetSdk and compileSdk for the newest Android
 
@@ -64,7 +73,7 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
 
 ## 4.2.5. Coming home animation
 
-Open any app, then press Home. The dock and icons should rise and fade in, bottom rows first, after the app's close animation, and end exactly in place. Lock the screen with an app open, unlock, and check the icons are simply there (the entry is skipped when the screen was off). Turn on Remove animations in Accessibility and check it is skipped. If a new Android version makes the icons sit hidden too long before moving, lower `ENTER_WAIT_MS` in `HomeActivity.kt`; it is the longest they wait for `onEnterAnimationComplete`.
+Open any app, then press Home. The dock and icons should rise and fade in, bottom rows first, after the app's close animation, and end exactly in place. Lock the screen with an app open, unlock, and check the icons are simply there (the entry is skipped when the screen was off). Turn on Remove animations in Accessibility and check it is skipped. If a new Android version makes the icons sit hidden too long before moving, lower `ENTER_WAIT_MS` in `EnterAnimation.kt`; it is the longest they wait for `onEnterAnimationComplete`.
 
 ## 4.3. Themed and generated icons
 
@@ -79,8 +88,18 @@ When a string is added or changed in `values/strings.xml`, add or change it in `
 1. The build check runs `gradle/actions/wrapper-validation` before anything else. If it fails right after a Dependabot Gradle wrapper bump, rerun the job once, since the action fetches new checksums from gradle.org. If it still fails, DON'T MERGE: `gradle-wrapper.jar` is not a real Gradle release.
 2. In Chrome, open any page, then menu, Add to home screen, Add. Corkboard's own "Add to home screen?" dialog should appear naming Chrome. Cancel adds nothing; Add places the icon.
 3. Export a layout, then import it again. It should restore with a "Layout restored" message. The backup limits (4 MB layout file, 4 MB per image, 64 MB in total, 4096 files) are constants near the bottom of `Store` in `LayoutStore.kt`. Raise them only if a real backup ever hits them.
-4. If the phone has a private space, lock it and open the drawer: none of its apps should be in Personal or Work. Then check the new Android version's notes for changes to `LauncherApps.getProfiles` and `ACCESS_HIDDEN_PROFILES`.
+4. Private space (on the phone, if it has one; see 4.7 for the full check): with Settings, Privacy, Private space off, the drawer has no Private tab and none of its apps are in Personal or Work.
 5. Read the new Android version's behavior changes for anything touching `LauncherApps.PinItemRequest`, `AppWidgetHost` or the storage access framework.
+
+## 4.7. Privacy features
+
+1. Settings, Privacy, the permission list: it is read from the installed app, so it can't lie. Check every entry has a plain description. An entry showing a raw permission name with "Not described in Corkboard yet" means a new permission got into the manifest. Find out why; if it belongs, add a description in `describe()` in `PrivacyActivity.kt` and in the tables in README.md and PRIVACY.md.
+2. Notification dots, off: Android's Notification access screen (Settings, Apps, Special app access) should not list Corkboard at all, since the listener is disabled. Turn dots on, allow access, and check a dot shows on an app with a notification and goes when the notification is cleared. Try both dot colors. Turn dots off: the dots go at once, and Corkboard drops off the Notification access screen again.
+3. Read the new Android version's notes for changes to `NotificationListenerService`, `Ranking.canShowBadge`, or how Notification access is granted.
+4. Private space (Android 15+): turn the switch on, open the drawer, use the Private tab's Lock and Unlock. Long-press a private app: no Edit icon, Rename, Hide or Add to home screen. Export a backup and check `layout.json` in it has no keys ending in the private profile's number (`adb shell dumpsys user` lists it). On Android 16+, set the private space to hide while locked and check the tab hides when locked.
+5. Read the new Android version's notes for changes to `LauncherApps.getLauncherUserInfo`, `LauncherUserInfo.getUserConfig`, `ACCESS_HIDDEN_PROFILES` and the private space settings intent.
+6. Undo: remove an icon, tap Undo, it's back in place. Remove a widget, tap Undo, the same widget is back (not a new setup). Remove one and wait: after five seconds the bar goes and the change is final.
+7. Long-press between two icons: the home menu opens. Long-press an icon: its menu opens.
 
 ## 5. Write it down
 

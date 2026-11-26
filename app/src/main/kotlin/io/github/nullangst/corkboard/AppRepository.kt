@@ -16,6 +16,7 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
@@ -41,6 +42,17 @@ object Apps {
     private val main = Handler(Looper.getMainLooper())
 
     val apps = LinkedHashMap<AppKey, AppInfo>()
+
+    /**
+     * Private space apps, kept apart from [apps] so nothing that saves the layout (reconcile, the
+     * seen and hidden sets, auto-add, backups) ever sees them. Empty unless the Privacy switch is on.
+     */
+    val privateApps = LinkedHashMap<AppKey, AppInfo>()
+
+    /** The private profile's serial, if there is one, whether or not the switch is on. */
+    var privateSerial: Long? = null
+        private set
+
     private val users = HashMap<Long, UserHandle>()
 
     /** Called on the main thread after anything changed. HomeActivity sets it. */
@@ -62,9 +74,18 @@ object Apps {
 
     fun user(serial: Long): UserHandle? = users[serial] ?: um.getUserForSerialNumber(serial)
 
-    fun isWork(serial: Long) = serial != me
+    fun isWork(serial: Long) = serial != me && serial != privateSerial
 
-    fun workUser(): UserHandle? = la.profiles.firstOrNull { it != Process.myUserHandle() }
+    fun workUser(): UserHandle? = la.profiles.firstOrNull { it != Process.myUserHandle() && !PrivateSpace.isPrivateProfile(it) }
+
+    /** An app in any profile Corkboard shows, private space included. */
+    fun find(key: AppKey): AppInfo? = apps[key] ?: privateApps[key]
+
+    /** A profile whose apps Corkboard shows. A private space with its switch off is not one. */
+    fun visible(user: UserHandle): Boolean {
+        if (users.isEmpty()) reload()
+        return users.containsKey(serial(user))
+    }
 
     fun isQuiet(serial: Long): Boolean {
         if (serial == me) return false
@@ -89,10 +110,18 @@ object Apps {
      */
     fun reload(): Set<Long> {
         apps.clear()
+        privateApps.clear()
         users.clear()
+        privateSerial = null
         val trusted = HashSet<Long>()
         for (user in la.profiles) {
             val s = serial(user)
+            val isPrivate = PrivateSpace.isPrivateProfile(user)
+            if (isPrivate) {
+                privateSerial = s
+                // Switched off: not even listed.
+                if (!PrivateSpace.enabled()) continue
+            }
             users[s] = user
             val list = try {
                 la.getActivityList(null, user)
@@ -102,8 +131,9 @@ object Apps {
             for (info in list) {
                 if (info.componentName.packageName == app.packageName) continue
                 val key = AppKey(info.componentName, s)
-                apps[key] = AppInfo(key, info)
+                (if (isPrivate) privateApps else apps)[key] = AppInfo(key, info)
             }
+            if (isPrivate) continue
             val unlocked = try {
                 um.isUserUnlocked(user)
             } catch (_: Exception) {
@@ -226,13 +256,20 @@ object Apps {
         return changed
     }
 
-    /** Apps for the drawer: installed, not hidden, sorted by label. */
-    fun drawerApps(work: Boolean): List<AppInfo> {
+    /** Which drawer tab. */
+    enum class Tab { PERSONAL, WORK, PRIVATE }
+
+    /** Apps for a drawer tab: installed, not hidden, sorted by label. */
+    fun drawerApps(tab: Tab): List<AppInfo> {
         val hidden = Store.layout.hidden
         // Sorted the way the phone's language sorts: "Ärzte" next to "Apps", not after "Zoom".
         val collator = Collator.getInstance().apply { strength = Collator.SECONDARY }
-        return apps.values
-            .filter { isWork(it.key.user) == work && it.key.toString() !in hidden }
+        val list = when (tab) {
+            Tab.PRIVATE -> privateApps.values
+            Tab.WORK -> apps.values.filter { isWork(it.key.user) && it.key.toString() !in hidden }
+            Tab.PERSONAL -> apps.values.filter { !isWork(it.key.user) && it.key.toString() !in hidden }
+        }
+        return list
             .map { it to collator.getCollationKey(it.label) }
             .sortedWith { a, b -> a.second.compareTo(b.second) }
             .map { it.first }
@@ -271,6 +308,13 @@ object Apps {
             addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
             addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
             addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
+            // Any kind of profile, private space included: added, removed, locked or unlocked.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                addAction(Intent.ACTION_PROFILE_ADDED)
+                addAction(Intent.ACTION_PROFILE_REMOVED)
+                addAction(Intent.ACTION_PROFILE_AVAILABLE)
+                addAction(Intent.ACTION_PROFILE_UNAVAILABLE)
+            }
         }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
