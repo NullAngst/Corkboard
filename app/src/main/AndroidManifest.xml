@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- So swipe down can open the notification shade. Normal permission. -->
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <!-- Android 15+: lets Android show a private space to the default home app. Normal permission.
+         Unused while Settings > Privacy > Private space is off, which is the default. -->
+    <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
 
     <!-- Lets Android 11+ show us every app with a launcher icon, and every app that provides a
          widget (some have no launcher icon at all), without QUERY_ALL_PACKAGES. -->
@@ -60,6 +63,11 @@
             android:label="@string/settings" />
 
         <activity
+            android:name=".PrivacyActivity"
+            android:exported="false"
+            android:label="@string/p_title" />
+
+        <activity
             android:name=".IconEditActivity"
             android:exported="false"
             android:label="@string/edit_icon" />
@@ -77,5 +85,19 @@
                 <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
             </intent-filter>
         </activity>
+
+        <!-- Notification dots. Shipped disabled: Android can't connect to it, even with Notification
+             access granted, until Settings > Privacy > Notification dots enables it. Exported so the
+             system can bind it; BIND_NOTIFICATION_LISTENER_SERVICE means only the system can. -->
+        <service
+            android:name=".DotListener"
+            android:enabled="false"
+            android:exported="true"
+            android:label="@string/p_dots"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

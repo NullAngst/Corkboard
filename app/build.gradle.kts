@@ -61,4 +61,18 @@ android {
     lint {
         abortOnError = true
     }
+
+    testOptions {
+        // Unit tests run on the JVM against a stub android.jar: plain default values instead of
+        // "Stub!" errors. The tests cover pure logic (grid solver, layout repair, layout.json reading).
+        unitTests.isReturnDefaultValues = true
+    }
+}
+
+// Test-only libraries: they never reach the APK. CI fails the build if the release runtime
+// classpath holds anything besides the Kotlin standard library (.github/scripts/check_runtime_deps.sh).
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    // The real org.json for tests: Android's copy is only a stub off the device.
+    testImplementation("org.json:json:20260814")
 }

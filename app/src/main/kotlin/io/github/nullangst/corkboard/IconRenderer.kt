@@ -159,13 +159,15 @@ object IconRenderer {
     }
 
     fun app(ctx: Context, key: AppKey, size: Int = sizePx(ctx), override: IconSettings? = null): Bitmap? {
-        val app = Apps.apps[key] ?: return null
+        val app = Apps.find(key) ?: return null
         val s = override ?: Store.layout.icons["app:$key"]
         val themed = themedColors(ctx)
         val k = "a|$key|${app.version}|${s?.look()}|$size|${Store.layout.settings.shape}|${themedKey(themed)}"
+        // Private space icons stay in memory only, never in the disk cache.
+        val disk = !PrivateSpace.isPrivate(key.user)
         if (override == null) {
             cache.get(k)?.let { return it }
-            DiskIcons.get(ctx, k, key.pkg)?.let {
+            if (disk) DiskIcons.get(ctx, k, key.pkg)?.let {
                 cache.put(k, it)
                 return it
             }
@@ -174,7 +176,7 @@ object IconRenderer {
         val bmp = themed(ctx, src, s, size, app.user, themed) ?: render(ctx, src, s, size, app.user)
         if (override == null) {
             cache.put(k, bmp)
-            DiskIcons.put(ctx, k, key.pkg, bmp)
+            if (disk) DiskIcons.put(ctx, k, key.pkg, bmp)
         }
         return bmp
     }

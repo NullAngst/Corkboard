@@ -137,6 +137,12 @@ class PinShortcutActivity : Activity() {
             finish()
             return
         }
+        // Private space apps stay in the private space: nothing of theirs goes on the home screen.
+        if (PrivateSpace.isPrivateProfile(info.userHandle)) {
+            Toast.makeText(applicationContext, R.string.private_stays, Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
         val pal = Themes.palette(this)
         val d = resources.displayMetrics.density
         val from = Apps.apps.values.firstOrNull { it.key.pkg == info.`package` && it.user == info.userHandle }?.baseLabel ?: info.`package`

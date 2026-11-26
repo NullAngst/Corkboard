@@ -4,8 +4,9 @@ A home screen launcher for Android that looks and behaves like Pixel Launcher or
 
 Install an app and it shows up on the home screen and in the app drawer. Drag it around, drop it into a folder, give it the icon shape or custom icon you want, add a widget an app provides. That is the whole product.
 
-- No third-party libraries. Android framework and the Kotlin standard library only. No AndroidX, no Compose.
+- No third-party libraries in the app. Android framework and the Kotlin standard library only. No AndroidX, no Compose. The build check fails if anything else gets into the APK.
 - No `INTERNET` permission. A launcher has no reason to talk to the network, and leaving the permission out proves it.
+- Anything that needs extra access is off until you turn it on, under Settings, Privacy. See [PRIVACY.md](PRIVACY.md).
 - Android 10 (API 29) and newer.
 
 <p>
@@ -20,11 +21,11 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 
 - Home screen grid with multiple pages and free placement (default 4 x 6, adjustable from 3 to 6 columns and 4 to 8 rows).
 - Dock: one row under the pages, same on every page.
-- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs.
+- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs, and a letter strip down the side to jump through the list.
 - New apps land on the home screen (toggle, on by default). Uninstalled apps disappear everywhere.
 - Long-press and drag to rearrange. Items in the way slide aside, Pixel-style. Drag to the screen edge to change page.
 - Folders: hold an app over another app for half a second. Rename, reorder, drag out.
-- Widgets from installed apps, placed and resized on the grid. Corkboard ships no widgets of its own.
+- Widgets from installed apps, placed and resized on the grid, with Widget settings for widgets that support it. Corkboard ships no widgets of its own.
 - Pinned shortcuts ("Add to home screen" from Chrome, confirmed before they land) and app shortcuts in the long-press menu.
 - Icon shapes: system default, circle, squircle, rounded square, square, teardrop. Per item: shape, custom image, scale, Fill or Fit treatment, background color.
 - Themed icons (Android 13+): each app's monochrome icon tinted to your wallpaper colors, like Pixel Launcher. Off by default.
@@ -37,11 +38,14 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 - Backup and restore of the layout and custom icons to one zip file, plus automatic backups to a folder you pick.
 - Haptics, with a master switch and a switch per moment.
 - Drag an icon to the top of the screen to Remove it, or Uninstall the app.
+- Removing or hiding something shows an Undo bar for a few seconds, like Pixel Launcher.
+- Notification dots, off by default. The dot takes its color from the app icon, or uses the theme accent.
+- Private space (Android 15+), off by default. Its apps get their own drawer tab and stay out of the layout, backups and icon cache.
 - Home screen stays upright unless you allow rotation.
 - Coming back from an app, the dock and icons rise and fade in, bottom rows first. Follows Android's animation scale, and skipped when "Remove animations" is on.
 - Swipe down anywhere on the home screen for the notification shade.
 
-Left out on purpose: a Google feed page, notification dots, icon packs, Private space, double-tap to lock.
+Left out on purpose: a Google feed page, icon packs, double-tap to lock.
 
 ## Installing
 
@@ -58,12 +62,27 @@ On first start the home screen is empty and every app is in the drawer. Everythi
 - **Tap** an app to open it. **Long-press** to lift it and open its menu at once, like Pixel Launcher. Let go to pick from the menu, or keep moving: the menu closes and you drag the app.
 - **Swipe up** from anywhere above the navigation bar for the drawer (or tap the **Apps** button, if you turned on "Open the drawer with a button"), **swipe down** for notifications, **swipe left or right** for pages. With gesture navigation, a swipe that starts on the very bottom edge belongs to Android and goes to recents instead.
 - **Long-press an app in the drawer** for its menu. Start moving instead and the drawer drops away so you can place it on the home screen.
-- **Long-press empty space** for Wallpaper, Widgets and Launcher settings. The widget picker has a search box at the top that matches widget and app names.
+- **Long-press empty space**, including the gaps between icons, for Wallpaper, Widgets and Launcher settings. Only an icon and its label count as the icon, like Pixel Launcher. The widget picker has a search box at the top that matches widget and app names.
+- **Remove** or **Hide** something and an **Undo** bar shows at the bottom for five seconds, or longer if Android's accessibility setting **Time to take action** asks for it. It goes away early when you start something else (a menu, a drag, another removal) or leave the home screen; after that the change is final.
+- **In the drawer**, touch or drag along the letter strip on the right to jump to a letter. It hides while you search.
 - **Home button** while on the home screen closes whatever is open and jumps to page 1.
 
 ### Removing and uninstalling by dragging
 
 While you drag an icon, a bar appears at the top of the screen. Drop on **Remove** to take it off the home screen, dock or folder (the app stays in the drawer). Drop on **Uninstall** to open Android's uninstall dialog; the icon goes back where it was until the app is actually gone. Uninstall only shows for apps that can be uninstalled, and Remove doesn't show when dragging out of the drawer. The bar lives in an empty band above the grid (where Pixel puts At a Glance), so it never covers the first row. Where an item lands is decided by where the dragged item is drawn, not by your finger, so a widget grabbed near its top edge goes where it looks like it will.
+
+### Privacy
+
+Launcher settings, **Privacy** has a switch for each feature that needs extra access, all off until you turn them on, and the list of every permission Corkboard asks Android for, read from the installed app.
+
+- **Notification dots** need Notification access, which Android grants as read-everything. Corkboard only reads which app each notification is from, keeps that in memory, and never stores it. Turning the switch on walks you to Android's Notification access screen. **Dot color** picks between a color from the app icon and the theme accent.
+- **Private space** shows your Android 15+ private space in a **Private** tab in the drawer, with Unlock, Lock and Android's private space settings. Its apps never go on the home screen, in folders, in backups or in the icon cache. It needs Corkboard to be the default home app.
+
+[PRIVACY.md](PRIVACY.md) has the details.
+
+### Widget settings
+
+Long-press a widget. Widgets whose app lets them be set up again after they're placed get a **Widget settings** entry that opens the widget's own settings screen.
 
 ### Drawer button
 
@@ -121,7 +140,7 @@ Lint fails the build if a string is missing from any language, so a new string h
 - **Automatic backup.** Under Backup, turn on **Automatic backup** and pick a folder in Android's folder picker. Corkboard gets permission for that one folder only and needs no storage permission. Choose **How often**: after changes (a minute after the last change), daily, weekly or monthly. Daily, weekly and monthly run when you return to the home screen and the last backup is that old, so a phone that sits untouched won't back up until it's used. **Backups to keep** is 1, 3, 5, 10 or 30; older automatic backups (`corkboard-auto-*.zip`) are deleted, and manual exports in the same folder are never touched. It only writes to the folder you picked on this phone, and only while Android still grants access to it. If the folder goes away or the permission is revoked, the setting shows the error and a scheduled backup tries again at most every 30 minutes; pick the folder again to fix it. A backup that fails halfway is deleted, so it never counts toward the ones kept. Restoring a backup on another phone keeps that phone's own automatic backup settings.
 - **Restoring a backup** brings back the layout and custom icons. Widget IDs belong to the phone, so restored widget spots ask to be set up again with one tap each. Android's own cloud backup is off, so the only backup is the one you export. Corkboard reads the whole zip into a scratch folder and checks it before anything on the phone changes: a zip over the size limits or a layout that doesn't parse is refused, file names that try to leave the icons folder are skipped, and a layout with items off the grid or on top of each other is tidied up. A file that isn't a valid backup changes nothing.
 - **Add to home screen from other apps** shows Corkboard's own confirmation with the shortcut's name, icon and the app asking. Android expects launchers to ask; without it any app in the foreground could put icons on your home screen with whatever name and picture it likes.
-- **Private space** (Android 15+) is invisible to Corkboard. Android only lists it for launchers that declare the `ACCESS_HIDDEN_PROFILES` permission, and Corkboard doesn't, so private-space apps never show in the drawer, the Work tab or on the home screen. Supporting it properly is a separate feature.
+- **Private space** (Android 15+) stays out of sight until Settings, Privacy, Private space is on. Android only shows it to the default home app, so the tab needs Corkboard set as default. Private apps can't be put on the home screen: anything there is saved in the layout and in backups, and the point of a private space is that nothing about it is.
 - **A damaged layout file** is kept as `layout.json.bad` in the app's private storage instead of being overwritten, and Corkboard starts with an empty home screen and every app in the drawer. Import a backup to get your layout back.
 
 ## Permissions
@@ -131,6 +150,8 @@ Lint fails the build if a string is missing from any language, so a new string h
 | `VIBRATE` | Haptics through the system vibrator. Normal permission, granted at install. |
 | `REQUEST_DELETE_PACKAGES` | So Uninstall can open the system uninstall dialog. Normal permission, granted at install. |
 | `EXPAND_STATUS_BAR` | So swipe down can open the notification shade. Normal permission, granted at install. |
+| `ACCESS_HIDDEN_PROFILES` | Android 15+: lets Android show a private space to the default home app. Normal permission, granted at install. Unused while Privacy, Private space is off. |
+| `DotListener` notification listener service | Notification dots. Disabled in the manifest, so Android can't connect to it until Privacy, Notification dots is on, and it only works after you allow Notification access in Android's settings. |
 | `<queries>` for MAIN + LAUNCHER and APPWIDGET_UPDATE | Lets Android 11+ show the launcher every app with a launcher icon and every app that provides a widget, without `QUERY_ALL_PACKAGES`. |
 | HOME + DEFAULT intent filter | Makes it selectable as the home app. |
 
@@ -146,7 +167,36 @@ Prerequisites: JDK 17 or newer (the workflow uses 21) and the Android SDK with p
 
 Local builds without a tag get version 0.0.0.
 
-The only version numbers in the build are the Android Gradle Plugin in `build.gradle.kts` and the Gradle wrapper in `gradle/wrapper/gradle-wrapper.properties`. AGP 9 compiles Kotlin itself, so there is no separate Kotlin plugin version. Dependabot opens pull requests for both, and for the GitHub Actions versions, so nobody edits them by hand.
+The version numbers in the build are the Android Gradle Plugin in `build.gradle.kts`, the Gradle wrapper in `gradle/wrapper/gradle-wrapper.properties`, and the two test libraries in `app/build.gradle.kts`. AGP 9 compiles Kotlin itself, so there is no separate Kotlin plugin version. Dependabot opens pull requests for all of them, and for the GitHub Actions versions, so nobody edits them by hand.
+
+Unit tests run on the JVM with `bash ./gradlew testDebugUnitTest`. They cover the parts with no screen: the reorder solver, layout repair, and reading layout files and backups, hostile ones included. JUnit and org.json are test-only and never reach the APK.
+
+### Code map
+
+Each file holds one thing, named for it, so any feature can be read on its own.
+
+| File | What's in it |
+|---|---|
+| `HomeActivity.kt` | The home screen's views, lifecycle, launching apps, folders and overlays. |
+| `HomeRoot.kt` | Home screen gestures: pages, drawer, notification shade, long-press on empty space. |
+| `DragDrop.kt` | Long-press to lift, drag and drop, reorder, folders by hovering, page flips at the edges. |
+| `Reorder.kt` | The grid solver that makes room when something is dropped on an occupied cell. |
+| `DropBar.kt` | The Remove and Uninstall targets shown while dragging. |
+| `Menus.kt` | Long-press menus for items, drawer apps, folder apps and empty space. |
+| `Undo.kt` | The Undo bar after removing or hiding something. |
+| `EnterAnimation.kt` | Icons rising in when coming back from an app. |
+| `Workspace.kt`, `CellGrid.kt`, `PageDots.kt`, `IconView.kt` | Pages, the grid inside each, the page dots, one icon with its label and dot. |
+| `AppDrawer.kt`, `LetterScroller.kt` | The drawer and its letter strip. |
+| `FolderPanel.kt` | An open folder. |
+| `Widgets.kt` | Widget host, picker, setup, settings and resize. |
+| `Shortcuts.kt` | App shortcuts, pinned shortcuts and the "Add to home screen" confirmation. |
+| `AppRepository.kt` | Installed apps per profile, and keeping the layout in step with installs and removals. |
+| `LayoutStore.kt` | The layout model, `layout.json`, backup export and import. |
+| `IconRenderer.kt` | Icon shapes, themed icons, the icon cache. |
+| `Dots.kt` | Notification dots and the notification listener. |
+| `PrivateSpace.kt` | Private space. |
+| `PrivacyActivity.kt`, `SettingsActivity.kt`, `IconEditActivity.kt`, `Ui.kt` | Settings screens and their shared building blocks. |
+| `Themes.kt`, `Haptics.kt`, `Shade.kt`, `AutoBackup.kt` | Theme colors, vibration, swipe down for the shade, automatic backups. |
 
 ## Signing
 
@@ -172,7 +222,7 @@ BACK UP THE KEYSTORE AND ITS PASSWORDS. If it is lost, no future APK can install
 
 Versions come from the tag: `v1.6.0` becomes versionName `1.6.0` and versionCode `10600`. Releases bump the minor number.
 
-The workflow fails with a clear message if it was run on a branch instead of a tag, or if no release exists for that tag yet. Rerunning it on the same tag replaces the APK. Pushes to `main` and pull requests only build a debug APK and run lint; nothing is released on a tag push.
+The workflow fails with a clear message if it was run on a branch instead of a tag, or if no release exists for that tag yet. Rerunning it on the same tag replaces the APK. Pushes to `main` and pull requests only build a debug APK, run lint and unit tests, and check the release build carries no extra libraries; nothing is released on a tag push.
 
 To check an APK's provenance: `gh attestation verify Corkboard-v1.2.0.apk --repo NullAngst/Corkboard`
 

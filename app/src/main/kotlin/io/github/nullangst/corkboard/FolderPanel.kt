@@ -101,8 +101,9 @@ class FolderPanel(private val act: HomeActivity, val folder: FolderItem) : Frame
             v.greyed = Apps.isQuiet(key.user)
             v.tag = key
             v.setOnClickListener { act.launchApp(v, key) }
+            Dots.attach(v, listOf(Dots.keyOf(key)), act.pal)
             v.setOnLongClickListener {
-                act.startFolderDrag(v, folder, key)
+                act.dnd.startFolderDrag(v, folder, key)
                 true
             }
             grid.add(v, null, i % cols, i / cols)
