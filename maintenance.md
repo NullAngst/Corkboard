@@ -55,6 +55,7 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
    - Drag an app onto another app, hold, drop: a folder forms. Drag one back out.
    - Drag an app onto an occupied cell: neighbors slide aside.
    - Search the drawer for the first few letters of an app: apps whose name starts with them come first, and Enter opens the top one.
+   - Rotate to landscape (with Allow home screen rotation on) or use a tablet: the drawer has more columns than on a phone in portrait.
    - Add a widget, resize it, remove it. With gesture navigation on, put a widget against the left edge, open Resize, and drag its left handle: the widget resizes and Android's back gesture doesn't fire. Same for the right edge. Then make a widget as wide as the grid and resize it back down: it must shrink at least to the size it was placed at.
    - "Add to home screen" from Chrome: a pinned shortcut lands on the home screen.
    - Long-press an app: its app shortcuts show at the top of the menu.
@@ -100,6 +101,7 @@ When a string is added or changed in `values/strings.xml`, add or change it in `
 4. Private space (Android 15+): turn the switch on, open the drawer, use the Private tab's Lock and Unlock. Long-press a private app: no Edit icon, Rename, Hide or Add to home screen. Export a backup and check `layout.json` in it has no keys ending in the private profile's number (`adb shell dumpsys user` lists it). On Android 16+, set the private space to hide while locked and check the tab hides when locked, and tap the tab's Settings button: Android's private space settings should open. If nothing opens, check the new version's notes for changes to `ActivityOptions.setPendingIntentBackgroundActivityStartMode`.
 5. Read the new Android version's notes for changes to `LauncherApps.getLauncherUserInfo`, `LauncherUserInfo.getUserConfig`, `ACCESS_HIDDEN_PROFILES` and the private space settings intent.
 5.5. Lock private space automatically (Android's own setting, in private space settings) set to Every time device locks: unlock the private space, lock and unlock the phone, open the Private tab. It should show locked. Android does the locking; Corkboard only shows it.
+5.6. Most used apps: with the switch off, open a few apps and check `adb shell run-as io.github.nullangst.corkboard ls files` shows no `usage.json`. Turn it on, open an app three times and another once: the drawer's first row shows them in that order, with a line under it. Reset most used empties the row; switching off deletes the file.
 6. Undo: remove an icon, tap Undo, it's back in place. Remove a widget, tap Undo, the same widget is back (not a new setup). Remove one and wait: after five seconds the bar goes and the change is final.
 7. Long-press between two icons: the home menu opens. Long-press an icon: its menu opens.
 

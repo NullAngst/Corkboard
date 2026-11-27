@@ -77,6 +77,12 @@
     <string name="perm_hidden">Vertraulichen Bereich sehen</string>
     <string name="perm_hidden_sub">Erlaubt Android, der Standard-Startbildschirm-App deinen vertraulichen Bereich zu zeigen. Ungenutzt, solange Vertraulicher Bereich oben aus ist.</string>
     <string name="perm_unknown">%1$s. In Corkboard noch nicht beschrieben.</string>
+    <string name="p_most_used">Meistgenutzte Apps</string>
+    <string name="p_most_used_sub">Standardmäßig aus, weil dafür festgehalten wird, was du öffnest. Wenn das an ist, zeigt die erste Reihe der App-Übersicht die Apps, die du am häufigsten öffnest, und sie stehen in der Suche vorn. Corkboard zählt nur Apps, die du über Corkboard öffnest, speichert pro App eine verblassende Zählung und den Tag ihrer letzten Änderung, nur auf diesem Telefon, nie in Sicherungen, und löscht alles, wenn du das ausschaltest.</string>
+    <string name="p_most_used_reset">Meistgenutzte zurücksetzen</string>
+    <string name="p_most_used_reset_sub">Alle Zählungen vergessen und neu beginnen</string>
+    <string name="p_most_used_reset_msg">Die Reihe der meistgenutzten Apps beginnt leer und füllt sich wieder, wenn du Apps öffnest.</string>
+    <string name="p_most_used_reset_go">Zurücksetzen</string>
     <string name="cant_pin_shortcut">Verknüpfung konnte nicht angepinnt werden</string>
     <string name="shortcut_unavailable">Verknüpfung ist nicht verfügbar</string>
     <string name="cant_load_widget">Widget kann nicht geladen werden</string>

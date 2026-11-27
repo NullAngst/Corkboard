@@ -17,10 +17,11 @@ Everything below is in Corkboard's private storage on the phone, which other app
 | Layout | `files/layout.json` | Pages, dock, folders, which app or shortcut or widget sits where (by component name and id), hidden apps, renamed labels, icon settings, launcher settings. |
 | Custom icons | `files/icons/` | Images you picked in Edit icon. |
 | Icon cache | `cache/icons/` | Rendered app icons, so start-up is quick. 25 MB by default, can be turned off. Android may clear it at any time. |
+| Most used counts | `files/usage.json` | Only while Most used apps is on. Per app: a fading count and the day it last changed. Deleted when the switch goes off. |
 
 Backups exist only when you make them: an export to a file you pick, or automatic backups to a folder you pick. A backup is `layout.json` plus your custom icons, nothing else.
 
-Nothing about your notifications or your private space is ever written to storage or to a backup.
+Nothing about your notifications or your private space is ever written to storage or to a backup. The most used counts are never in a backup either.
 
 ## Off until you turn them on
 
@@ -58,6 +59,20 @@ With it on:
 - Unlock and Lock go through Android's own private space lock. On Android 16, if you set the private space to hide while locked, the tab hides too.
 
 All of this is in `PrivateSpace.kt`, plus the separate private app list in `AppRepository.kt`.
+
+### Most used apps
+
+Off because it means keeping a record of what you open, and that should be your choice.
+
+With it on:
+
+- Corkboard counts only the apps it opens itself: taps on the home screen, dock, folders and drawer, and Enter in search. It never sees apps opened from notifications, recents or other apps, and it asks for no permission to do this.
+- For each app it keeps one number and the day that number last changed, in `files/usage.json`. Each open adds 1, and every open's weight halves every 14 days. There is no list of opens and no time of day. Once an app's number fades below a small floor it is dropped from the file: about four months after a single open, longer for an app opened often.
+- Private space apps are never counted. Uninstalled apps are dropped.
+- The file is separate from `layout.json`, so it is never in a backup.
+- **Reset most used** empties it. Turning the switch off deletes the file.
+
+All of this is in `Usage.kt`.
 
 ## Permissions
 

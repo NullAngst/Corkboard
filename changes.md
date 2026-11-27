@@ -1,5 +1,16 @@
 # Changes
 
+2026.11.27 - Most used apps, adaptive drawer
+
+* New Privacy switch, Most used apps, off by default. With it on, the first row of the drawer's Personal and Work tabs shows the apps you open most, most used first, with a line under the row. It is one row wide and hides while you search
+* More-opened apps win ties in search, so of two apps that both start with what you typed, the one you use more comes first
+* Counting covers only apps opened through Corkboard (home screen, dock, folders, drawer, search). Each open's weight halves every 14 days, so the row follows what you use now
+* Stored per app: a fading count and the day it last changed, in files/usage.json, never in backups. Private space apps are never counted. Reset most used empties it; switching off deletes it
+* The drawer adapts to wide screens like Pixel Launcher: tablets and landscape get more columns, each at least 120dp wide, up to 10. Phones in portrait still use the Columns setting
+* Unit tests for the fading counts, the row, the search tie-break and the column rule
+
+Reasons for changes: requested. The most used row makes common apps one tap away, and the tie-break settles cases like Insget and Instagram both matching "ins". Counting stays inside Corkboard so no usage permission is needed, and it's off by default because it is a record of what gets opened.
+
 2026.11.27 - Search order
 
 * Drawer search puts the best matches first: apps whose name starts with what you typed, then apps with a later word starting with it, then apps that only contain it. Alphabetical within each group. Typing "ins" now lists Insget and Instagram before Universal Installer, and Gubbins last

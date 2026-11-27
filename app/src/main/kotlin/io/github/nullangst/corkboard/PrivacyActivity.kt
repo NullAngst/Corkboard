@@ -117,6 +117,25 @@ class PrivacyActivity : Activity() {
             add(indent(note(str(R.string.p_private_none))))
         }
 
+        // ---- Most used apps ----
+        add(Ui.switchRow(this, pal, str(R.string.p_most_used), s.mostUsed, str(R.string.p_most_used_sub)) { on ->
+            s.mostUsed = on
+            Store.save()
+            // Off means gone: the counts are deleted, not just hidden.
+            if (!on) Usage.clear()
+            build()
+        })
+        if (s.mostUsed) {
+            add(indent(Ui.row(this, pal, str(R.string.p_most_used_reset), str(R.string.p_most_used_reset_sub)) {
+                AlertDialog.Builder(this, Themes.dialogTheme(pal))
+                    .setTitle(R.string.p_most_used_reset)
+                    .setMessage(R.string.p_most_used_reset_msg)
+                    .setPositiveButton(R.string.p_most_used_reset_go) { _, _ -> Usage.clear() }
+                    .setNegativeButton(R.string.cancel, null)
+                    .show()
+            }))
+        }
+
         // ---- What the app can do ----
         add(Ui.header(this, pal, str(R.string.p_permissions)))
         add(note(str(R.string.p_permissions_sub)))

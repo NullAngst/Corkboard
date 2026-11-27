@@ -128,6 +128,7 @@ class Settings {
      */
     var dots = false
     var privateSpace = false
+    var mostUsed = false
 
     /** "icon" takes the dot color from the app's icon, "accent" uses the theme accent. */
     var dotColor = "icon"
@@ -527,6 +528,7 @@ object Store {
                 put("dots", s.dots)
                 put("dotColor", s.dotColor)
                 put("privateSpace", s.privateSpace)
+                put("mostUsed", s.mostUsed)
             })
             put("pages", JSONArray().apply {
                 for (page in l.pages) put(JSONArray().apply { for (it in page) put(itemJson(it)) })
@@ -584,6 +586,7 @@ object Store {
             s.dots = j.optBoolean("dots", false)
             s.dotColor = if (j.optString("dotColor") == "accent") "accent" else "icon"
             s.privateSpace = j.optBoolean("privateSpace", false)
+            s.mostUsed = j.optBoolean("mostUsed", false)
         }
         l.pages.clear()
         o.optJSONArray("pages")?.let { pages ->

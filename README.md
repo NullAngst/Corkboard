@@ -21,7 +21,8 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 
 - Home screen grid with multiple pages and free placement (default 4 x 6, adjustable from 3 to 6 columns and 4 to 8 rows).
 - Dock: one row under the pages, same on every page.
-- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs, and a letter strip down the side to jump through the list. Search puts apps whose name starts with what you typed first, then apps with a later word starting with it, then the rest; Enter opens the top one.
+- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs, and a letter strip down the side to jump through the list. Search puts apps whose name starts with what you typed first, then apps with a later word starting with it, then the rest; Enter opens the top one. On tablets and in landscape the drawer gets more columns, each at least 120dp wide, instead of stretched ones; phones in portrait use the Columns setting.
+- Most used apps, off by default: the first row of the drawer's Personal and Work tabs shows the apps you open most, and they win ties in search.
 - New apps land on the home screen (toggle, on by default). Uninstalled apps disappear everywhere.
 - Long-press and drag to rearrange. Items in the way slide aside, Pixel-style. Drag to the screen edge to change page.
 - Folders: hold an app over another app for half a second. Rename, reorder, drag out.
@@ -77,6 +78,8 @@ Launcher settings, **Privacy** has a switch for each feature that needs extra ac
 
 - **Notification dots** need Notification access, which Android grants as read-everything. Corkboard only reads which app each notification is from, keeps that in memory, and never stores it. Turning the switch on walks you to Android's Notification access screen. **Dot color** picks between a color from the app icon and the theme accent.
 - **Private space** shows your Android 15+ private space in a **Private** tab in the drawer, with Unlock, Lock and, on Android 16+, **Settings** for Android's private space settings (Android 15 doesn't let other home apps open them; use Settings, Security & privacy, Private space there). Its apps never go on the home screen, in folders, in backups or in the icon cache. It needs Corkboard to be the default home app. Locking automatically when the phone locks is Android's own setting, under private space settings, **Lock private space automatically**; Android does the locking, whichever home app you use.
+
+- **Most used apps** adds a row of the apps you open most to the top of the drawer's Personal and Work tabs, one full row wide, and puts them first among equal search matches. Corkboard counts only what you open through it (home screen, dock, folders, drawer, search). Each open's weight halves every two weeks, so the row follows what you use now. The counts stay on the phone, never go in backups, and are deleted when you switch this off. **Reset most used** starts over.
 
 [PRIVACY.md](PRIVACY.md) has the details.
 
@@ -187,6 +190,7 @@ Each file holds one thing, named for it, so any feature can be read on its own.
 | `EnterAnimation.kt` | Icons rising in when coming back from an app. |
 | `Workspace.kt`, `CellGrid.kt`, `PageDots.kt`, `IconView.kt` | Pages, the grid inside each, the page dots, one icon with its label and dot. |
 | `AppDrawer.kt`, `LetterScroller.kt`, `Search.kt` | The drawer, its letter strip, and search matching and order. |
+| `Usage.kt` | Most used apps: counting opens and picking the drawer's top row. |
 | `FolderPanel.kt` | An open folder. |
 | `Widgets.kt` | Widget host, picker, setup, settings and resize. |
 | `Shortcuts.kt` | App shortcuts, pinned shortcuts and the "Add to home screen" confirmation. |
