@@ -79,6 +79,12 @@
     <string name="perm_hidden">See a private space</string>
     <string name="perm_hidden_sub">Lets Android show your private space to the default home app. Unused while Private space above is off.</string>
     <string name="perm_unknown">%1$s. Not described in Corkboard yet.</string>
+    <string name="p_most_used">Most used apps</string>
+    <string name="p_most_used_sub">Off by default, since it means keeping a record of what you open. With this on, the drawer\'s first row shows the apps you open most, and they come first in search. Corkboard counts only the apps you open through it, keeps a fading count per app, and the day it last changed, on this phone only, never in backups, and deletes it all when you turn this off.</string>
+    <string name="p_most_used_reset">Reset most used</string>
+    <string name="p_most_used_reset_sub">Forget every count and start again</string>
+    <string name="p_most_used_reset_msg">The most used row starts empty and fills again as you open apps.</string>
+    <string name="p_most_used_reset_go">Reset</string>
     <string name="cant_pin_shortcut">Couldn\'t pin that shortcut</string>
     <string name="shortcut_unavailable">Shortcut isn\'t available</string>
     <string name="cant_load_widget">Can\'t load widget</string>

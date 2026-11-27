@@ -471,6 +471,7 @@ class HomeActivity : Activity() {
         val user = Apps.user(key.user) ?: return
         try {
             Apps.la.startMainActivity(key.component, user, bounds(v), clipReveal(v))
+            Usage.opened(key)
         } catch (_: Exception) {
             Toast.makeText(this, R.string.cant_open_app, Toast.LENGTH_SHORT).show()
         }

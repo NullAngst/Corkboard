@@ -77,6 +77,12 @@
     <string name="perm_hidden">Ver un espacio privado</string>
     <string name="perm_hidden_sub">Permite que Android muestre tu espacio privado a la aplicación de inicio predeterminada. Sin uso mientras Espacio privado esté desactivado.</string>
     <string name="perm_unknown">%1$s. Aún no se describe en Corkboard.</string>
+    <string name="p_most_used">Aplicaciones más usadas</string>
+    <string name="p_most_used_sub">Desactivado de forma predeterminada, porque supone guardar qué abres. Con esto activado, la primera fila del cajón muestra las aplicaciones que más abres y salen primero en la búsqueda. Corkboard solo cuenta las aplicaciones que abres desde él, guarda un recuento que se va desvaneciendo por aplicación, y el día en que cambió por última vez, solo en este teléfono, nunca en las copias de seguridad, y lo borra todo al desactivarlo.</string>
+    <string name="p_most_used_reset">Restablecer más usadas</string>
+    <string name="p_most_used_reset_sub">Olvidar todos los recuentos y empezar de nuevo</string>
+    <string name="p_most_used_reset_msg">La fila de más usadas empieza vacía y se vuelve a llenar a medida que abres aplicaciones.</string>
+    <string name="p_most_used_reset_go">Restablecer</string>
     <string name="cant_pin_shortcut">No se pudo fijar ese acceso directo</string>
     <string name="shortcut_unavailable">El acceso directo no está disponible</string>
     <string name="cant_load_widget">No se puede cargar el widget</string>

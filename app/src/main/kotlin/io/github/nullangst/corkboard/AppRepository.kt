@@ -62,6 +62,7 @@ object Apps {
     val me: Long get() = serial(Process.myUserHandle())
 
     fun init(ctx: Context) {
+        Usage.init(ctx)
         if (::la.isInitialized) return
         app = ctx.applicationContext
         la = app.getSystemService(LauncherApps::class.java)
@@ -253,6 +254,8 @@ object Apps {
             Store.save()
             Store.cleanIcons()
         }
+        // Most used counts for apps that are gone. Profiles that didn't load fully keep theirs.
+        Usage.forget { k -> AppKey.parse(k)?.let { apps.containsKey(it) || !userTrusted(it.user, trusted) } ?: false }
         return changed
     }
 

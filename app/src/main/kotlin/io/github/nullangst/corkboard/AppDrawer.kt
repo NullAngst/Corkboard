@@ -7,6 +7,8 @@ package io.github.nullangst.corkboard
 
 import android.annotation.SuppressLint
 import android.content.res.ColorStateList
+import android.graphics.Canvas
+import android.graphics.Paint
 import android.graphics.Rect
 import android.os.Build
 import android.text.Editable
@@ -28,6 +30,24 @@ import android.widget.TextView
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+
+/** Extra height of the most-used row, holding the line under it. */
+private const val TOP_ROW_EXTRA_DP = 12f
+
+/** Narrowest a drawer column gets on a wide screen. */
+private const val WIDE_COLUMN_DP = 120
+
+/** Most drawer columns, however wide the screen. */
+private const val MAX_DRAWER_COLUMNS = 10
+
+/**
+ * Drawer columns for a window [widthDp] wide, like Pixel Launcher: wide screens (tablets,
+ * landscape) get more columns, each at least [WIDE_COLUMN_DP] wide, instead of stretched cells.
+ * Never fewer than the Columns [setting], so phones in portrait keep exactly the setting.
+ */
+fun drawerColumns(widthDp: Int, setting: Int): Int =
+    (widthDp / WIDE_COLUMN_DP).coerceIn(setting, maxOf(setting, MAX_DRAWER_COLUMNS))
+
 /**
  * Swipe-up drawer: search on top, Personal, Work and Private tabs, every non-hidden app
  * alphabetically, and the letter strip down the side.
@@ -46,11 +66,30 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private val privSettings = TextView(act)
     private val lockedNote = TextView(act)
     private val body = android.widget.FrameLayout(act)
-    private val grid = GridView(act)
+    /** The app grid. Draws a thin line under the most-used row while that row is on screen. */
+    private val grid = object : GridView(act) {
+        override fun dispatchDraw(canvas: Canvas) {
+            super.dispatchDraw(canvas)
+            if (topCells == 0 || firstVisiblePosition != 0) return
+            val row = getChildAt(0) ?: return
+            val y = row.bottom - TOP_ROW_EXTRA_DP * d / 2f
+            val inset = 16 * d
+            canvas.drawRect(paddingLeft + inset, y, width - paddingRight - inset, y + d, linePaint)
+        }
+    }
+    private val linePaint = Paint()
     private val bubble = TextView(act)
-    private val scroller = LetterScroller(act, bubble) { grid.setSelection(it) }
+    private val scroller = LetterScroller(act, bubble) { grid.setSelection(it + topCells) }
     private var tab = Apps.Tab.PERSONAL
+
+    /** The tab's apps, or search results, in order. */
     private var items: List<AppInfo> = emptyList()
+
+    /** What the grid shows: the most-used row (padded with blanks to a full row), then [items]. */
+    private var cells: List<AppInfo?> = emptyList()
+
+    /** How many cells the most-used row takes: a full row, or 0 when it isn't shown. */
+    private var topCells = 0
     private val slop = ViewConfiguration.get(act).scaledTouchSlop
     private val fling = 600 * d
 
@@ -58,14 +97,22 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         private set
 
     private val adapter = object : BaseAdapter() {
-        override fun getCount() = items.size
-        override fun getItem(position: Int) = items[position]
+        override fun getCount() = cells.size
+        override fun getItem(position: Int) = cells[position]
         override fun getItemId(position: Int) = position.toLong()
+        override fun getViewTypeCount() = 2
+        override fun getItemViewType(position: Int) = if (cells[position] == null) 1 else 0
+        override fun areAllItemsEnabled() = false
+        override fun isEnabled(position: Int) = cells[position] != null
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val app = items[position]
-            val v = (convertView as? IconView) ?: IconView(act).apply {
-                layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, cellHeight())
+            // The most-used row is a little taller, leaving room for the line under it.
+            val h = cellHeight() + if (position < topCells) (TOP_ROW_EXTRA_DP * d).roundToInt() else 0
+            val app = cells[position] ?: return (convertView ?: View(act)).apply {
+                layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
+            val v = (convertView as? IconView) ?: IconView(act)
+            v.layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h)
             v.iconSize = IconRenderer.sizePx(act)
             v.showLabel = true
             v.panelStyle(act.pal.text)
@@ -92,7 +139,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
             isSingleLine = true
             imeOptions = EditorInfo.IME_ACTION_GO
             setOnEditorActionListener { _, _, _ ->
-                items.firstOrNull()?.let { act.launchApp(this, it.key) }
+                cells.firstOrNull { it != null }?.let { act.launchApp(this, it.key) }
                 true
             }
             addTextChangedListener(object : TextWatcher {
@@ -172,6 +219,9 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
 
     private fun cellHeight() = (IconRenderer.sizePx(act) + 34 * d).roundToInt()
 
+    /** Columns for this window's width: see [drawerColumns]. */
+    private fun columns() = drawerColumns(resources.configuration.screenWidthDp, Store.layout.settings.columns)
+
     fun setInsets(bars: Rect, ime: Int) {
         setPadding(bars.left, bars.top, bars.right, 0)
         bottomPad = maxOf(bars.bottom, ime) + (8 * d).roundToInt()
@@ -190,7 +240,8 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
         search.setPadding((18 * d).roundToInt(), 0, (18 * d).roundToInt(), 0)
         search.backgroundTintList = null
         search.compoundDrawableTintList = ColorStateList.valueOf(pal.textDim)
-        grid.numColumns = Store.layout.settings.columns
+        grid.numColumns = columns()
+        linePaint.color = pal.textDim and 0x55FFFFFF
         scroller.color = pal.textDim
         scroller.activeColor = pal.accent
         bubble.setTextColor(pal.onAccent)
@@ -237,8 +288,14 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private fun filter() {
         val q = search.text.toString().trim()
         val locked = tab == Apps.Tab.PRIVATE && PrivateSpace.locked()
+        val all = if (locked) emptyList() else Apps.drawerApps(tab)
         // Best matches first (Search.kt), since Enter launches the first one.
-        items = if (locked) emptyList() else Search.filter(Apps.drawerApps(tab), q) { it.label }
+        items = Search.filter(all, q, scoreOf = { Usage.score(it.key) }) { it.label }
+        // Most used apps (Usage.kt) get the first row, when on, not searching, and not in private space.
+        val n = columns()
+        val top = if (q.isEmpty() && tab != Apps.Tab.PRIVATE) Usage.top(all, n) else emptyList()
+        topCells = if (top.isEmpty()) 0 else n
+        cells = if (top.isEmpty()) items else top + List(n - top.size) { null } + items
         adapter.notifyDataSetChanged()
         // The letter strip is for browsing the whole list, so it steps aside while searching.
         scroller.setItems(items) { letterOf(it.label) }

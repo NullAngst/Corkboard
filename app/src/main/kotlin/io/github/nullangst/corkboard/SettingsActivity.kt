@@ -470,6 +470,7 @@ class SettingsActivity : Activity() {
         // Privacy switches stay as they are on this phone. Off is the default, and a backup never turns one on.
         restored.settings.dots = here.dots
         restored.settings.privateSpace = here.privateSpace
+        restored.settings.mostUsed = here.mostUsed
         Store.commitImport(im)
         Store.replace(restored)
         Apps.reload()

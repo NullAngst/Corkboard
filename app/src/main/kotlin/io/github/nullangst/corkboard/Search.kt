@@ -14,7 +14,8 @@ import java.text.Normalizer
  *  1. the name starts with what was typed ("ins" finds Instagram),
  *  2. a later word in the name starts with it ("ins" finds Universal Installer),
  *  3. it appears anywhere else in the name ("ins" finds Gubbins).
- * Within each group the drawer's alphabetical order stays. Accents and case are ignored.
+ * Within each group, more-opened apps come first when Most used apps is on, then the drawer's
+ * alphabetical order. Accents and case are ignored.
  */
 object Search {
     private val marks = Regex("\\p{Mn}+")
@@ -36,13 +37,16 @@ object Search {
         return if (inside) 2 else -1
     }
 
-    /** The items whose name matches [query], best first. The sort is stable, so ties keep the list's order. */
-    fun <T> filter(items: List<T>, query: String, nameOf: (T) -> String): List<T> {
+    /**
+     * The items whose name matches [query], best first. Within a group, a higher [scoreOf] comes
+     * first (how often an app is opened, when Most used apps is on), then the list's own order.
+     */
+    fun <T> filter(items: List<T>, query: String, scoreOf: (T) -> Double = { 0.0 }, nameOf: (T) -> String): List<T> {
         val q = fold(query.trim())
         if (q.isEmpty()) return items
-        return items.map { it to rank(fold(nameOf(it)), q) }
+        return items.map { Triple(it, rank(fold(nameOf(it)), q), scoreOf(it)) }
             .filter { it.second >= 0 }
-            .sortedBy { it.second }
+            .sortedWith(compareBy<Triple<T, Int, Double>> { it.second }.thenByDescending { it.third })
             .map { it.first }
     }
 }
