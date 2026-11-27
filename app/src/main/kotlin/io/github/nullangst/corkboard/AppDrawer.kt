@@ -118,11 +118,11 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
             // The most-used row is a little taller, leaving room for the line under it.
             val h = cellHeight() + if (position < topCells) (TOP_ROW_EXTRA_DP * d).roundToInt() else 0
             val app = cells[position] ?: return (convertView ?: View(act)).apply {
-                layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h)
+                sizeCell(this, h)
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             val v = (convertView as? IconView) ?: IconView(act)
-            v.layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h)
+            sizeCell(v, h)
             v.iconSize = IconRenderer.sizePx(act)
             v.showLabel = true
             v.panelStyle(act.pal.text)
@@ -232,6 +232,22 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     }
 
     private fun cellHeight() = (IconRenderer.sizePx(act) + 34 * d).roundToInt()
+
+    /**
+     * Gives a cell its height without swapping out its layout params. GridView builds the first
+     * cell early to measure itself and marks that in the params (forceAdd); fresh params drop the
+     * mark, and that cell then never attaches to the window, so a tap on it never opens the app
+     * and TalkBack can't see it.
+     */
+    private fun sizeCell(v: View, h: Int) {
+        val lp = v.layoutParams as? AbsListView.LayoutParams
+        if (lp == null) {
+            v.layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, h)
+        } else if (lp.height != h) {
+            lp.height = h
+            v.layoutParams = lp
+        }
+    }
 
     /** Columns for this window's width: see [drawerColumns]. */
     private fun columns() = drawerColumns(resources.configuration.screenWidthDp, Store.layout.settings.columns)

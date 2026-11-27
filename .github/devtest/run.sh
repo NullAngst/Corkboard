@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# TEMPORARY: reproduces the drawer's first app not opening on tap. Removed before merge.
+# TEMPORARY: reproduces (and checks the fix for) the drawer's first app not opening on tap. Removed before merge.
 set -u
 out=devtest-out
 mkdir -p "$out"
@@ -83,6 +83,7 @@ c1x=${2:-0}; c1y=${3:-0}; c1l=${4:-0}; c1t=${5:-0}
 set -- $(sed -n 2p "$out/01-cells.txt")
 c2x=${2:-0}; c2y=${3:-0}
 note "first cell $c1x,$c1y (left $c1l top $c1t), second cell $c2x,$c2y"
+note "first app visible to accessibility (left edge 0): $([ "$c1l" = 0 ] && echo yes || echo no)"
 tap_at 01a-first "$c1x" "$c1y"
 open_drawer
 tap_at 01b-second "$c2x" "$c2y"
@@ -92,6 +93,8 @@ open_drawer
 tap_at 01d-first-again "$c1x" "$c1y"
 open_drawer
 tap_at 01e-first-right "$(( c1x + 40 ))" "$(( c1y + 20 ))"
+open_drawer
+tap_at 01f-fixed-top-left 127 411
 
 step "2 search"
 open_drawer
