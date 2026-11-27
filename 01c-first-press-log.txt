@@ -1,0 +1,68 @@
+--------- beginning of main
+11-27 21:52:00.286  2222  2222 D CBDBG   : grid intercept a=0 x=127.0 y=115.0 -> false first=0 children=19
+11-27 21:52:00.286  2222  2222 D CBDBG   : icon Calendar view=242252480 a=0 -> true pressed=false attached=true
+11-27 21:52:00.286  2222  2222 D CBDBG   : drawer dispatch a=0 raw=127.0,411.0 -> true closing=false child0=242252480 at=0,296 254x231 enabled=true clickable=true ty=0.0
+11-27 21:52:00.485  2222  2222 D CBDBG   : grid intercept a=1 x=127.0 y=115.0 -> false first=0 children=19
+11-27 21:52:00.487  2222  2222 D CBDBG   : icon Calendar view=242252480 a=1 -> true pressed=true attached=true
+11-27 21:52:00.487  2222  2222 D CBDBG   : drawer dispatch a=1 raw=127.0,411.0 -> true closing=false child0=242252480 at=0,296 254x231 enabled=true clickable=true ty=0.0
+11-27 21:52:00.487  2222  2222 D CBDBG   : click pos=0 view=242252480 app=Calendar
+11-27 21:52:00.662  2222  2222 D CBDBG   : getView pos=0 view=130426569 app=Calendar parent=false
+11-27 21:52:00.662  2222  2222 D CBDBG   : getView pos=0 view=242252480 app=Calendar parent=false
+11-27 21:52:00.662  2222  2222 D CBDBG   : getView pos=1 view=29501745 app=Camera parent=false
+11-27 21:52:00.663  2222  2222 D CBDBG   : getView pos=2 view=259695598 app=Chrome parent=false
+11-27 21:52:00.663  2222  2222 D CBDBG   : getView pos=3 view=189917004 app=Clock parent=false
+11-27 21:52:00.663  2222  2222 D CBDBG   : getView pos=4 view=64768592 app=Contacts parent=false
+11-27 21:52:00.664  2222  2222 D CBDBG   : getView pos=5 view=201663361 app=Drive parent=false
+11-27 21:52:00.664  2222  2222 D CBDBG   : getView pos=6 view=152158649 app=Files parent=false
+11-27 21:52:00.664  2222  2222 D CBDBG   : getView pos=7 view=88431318 app=Gmail parent=false
+11-27 21:52:00.664  2222  2222 D CBDBG   : getView pos=8 view=62564316 app=Google parent=false
+11-27 21:52:00.664  2222  2222 D CBDBG   : getView pos=9 view=11806176 app=Maps parent=false
+11-27 21:52:00.679  2222  2222 D CBDBG   : getView pos=10 view=58243537 app=Messages parent=false
+11-27 21:52:00.685  2222  2222 D CBDBG   : getView pos=11 view=57879322 app=Phone parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=12 view=190635231 app=Photos parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=13 view=237554658 app=Safety parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=14 view=169080122 app=Settings parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=15 view=227224601 app=TMoble parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=16 view=19792016 app=Voice Search parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=17 view=111124722 app=YouTube parent=false
+11-27 21:52:00.686  2222  2222 D CBDBG   : getView pos=18 view=139814039 app=YT Music parent=false
+11-27 21:52:01.938  2222  2222 D CBDBG   : getView pos=0 view=200730113 app=Calendar parent=false
+11-27 21:52:01.954  2222  2222 D CBDBG   : getView pos=0 view=242252480 app=Calendar parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=1 view=29501745 app=Camera parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=2 view=259695598 app=Chrome parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=3 view=189917004 app=Clock parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=4 view=64768592 app=Contacts parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=5 view=201663361 app=Drive parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=6 view=152158649 app=Files parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=7 view=88431318 app=Gmail parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=8 view=62564316 app=Google parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=9 view=11806176 app=Maps parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=10 view=58243537 app=Messages parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=11 view=57879322 app=Phone parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=12 view=190635231 app=Photos parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=13 view=237554658 app=Safety parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=14 view=169080122 app=Settings parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=15 view=227224601 app=TMoble parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=16 view=19792016 app=Voice Search parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=17 view=111124722 app=YouTube parent=false
+11-27 21:52:01.955  2222  2222 D CBDBG   : getView pos=18 view=139814039 app=YT Music parent=false
+11-27 21:52:02.873  2222  2222 D CBDBG   : getView pos=0 view=133852326 app=Calendar parent=false
+11-27 21:52:02.873  2222  2222 D CBDBG   : getView pos=0 view=242252480 app=Calendar parent=false
+11-27 21:52:02.874  2222  2222 D CBDBG   : getView pos=1 view=29501745 app=Camera parent=false
+11-27 21:52:02.874  2222  2222 D CBDBG   : getView pos=2 view=259695598 app=Chrome parent=false
+11-27 21:52:02.874  2222  2222 D CBDBG   : getView pos=3 view=189917004 app=Clock parent=false
+11-27 21:52:02.874  2222  2222 D CBDBG   : getView pos=4 view=64768592 app=Contacts parent=false
+11-27 21:52:02.874  2222  2222 D CBDBG   : getView pos=5 view=201663361 app=Drive parent=false
+11-27 21:52:02.874  2222  2222 D CBDBG   : getView pos=6 view=152158649 app=Files parent=false
+11-27 21:52:02.875  2222  2222 D CBDBG   : getView pos=7 view=88431318 app=Gmail parent=false
+11-27 21:52:02.875  2222  2222 D CBDBG   : getView pos=8 view=62564316 app=Google parent=false
+11-27 21:52:02.875  2222  2222 D CBDBG   : getView pos=9 view=11806176 app=Maps parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=10 view=58243537 app=Messages parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=11 view=57879322 app=Phone parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=12 view=190635231 app=Photos parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=13 view=237554658 app=Safety parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=14 view=169080122 app=Settings parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=15 view=227224601 app=TMoble parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=16 view=19792016 app=Voice Search parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=17 view=111124722 app=YouTube parent=false
+11-27 21:52:02.922  2222  2222 D CBDBG   : getView pos=18 view=139814039 app=YT Music parent=false

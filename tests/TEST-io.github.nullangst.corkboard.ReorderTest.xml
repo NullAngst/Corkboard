@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.nullangst.corkboard.ReorderTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-27T21:49:03.249Z" hostname="runnervm3lb7s" time="0.003">
+  <properties/>
+  <testcase name="freeCellNeedsNoMoves" classname="io.github.nullangst.corkboard.ReorderTest" time="0.001"/>
+  <testcase name="dropOutsideTheGridRefuses" classname="io.github.nullangst.corkboard.ReorderTest" time="0.0"/>
+  <testcase name="fullGridRefuses" classname="io.github.nullangst.corkboard.ReorderTest" time="0.001"/>
+  <testcase name="pushCarriesNeighbours" classname="io.github.nullangst.corkboard.ReorderTest" time="0.001"/>
+  <testcase name="blockerIsPushedTheWayTheFingerMoves" classname="io.github.nullangst.corkboard.ReorderTest" time="0.0"/>
+  <testcase name="relocatesWhenPushingCannotWork" classname="io.github.nullangst.corkboard.ReorderTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

@@ -1,0 +1,17 @@
+
+=== 1 gesture navigation
+first cell 127,411 (left 0 top 296), second cell 381,411
+first app visible to accessibility (left edge 0): yes
+01a-first: tap 127,411 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity
+01b-second: tap 381,411 -> top activity com.google.android.gms/.auth.uiflows.minutemaid.MinuteMaidActivity
+01c-first-press: press 127,411 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity
+01d-first-again: tap 127,411 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity
+01e-first-right: tap 167,431 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity
+01f-fixed-top-left: tap 127,411 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity
+
+=== 2 search
+search box at 540 212
+02c-search-first: tap 135,411 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity
+
+=== 3 three-button navigation
+03a-first-3button: tap 127,411 -> top activity com.google.android.calendar/.allinone.AllInOneCalendarActivity

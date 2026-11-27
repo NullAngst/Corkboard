@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.nullangst.corkboard.SearchTest" tests="6" skipped="0" failures="0" errors="0" timestamp="2026-11-27T21:49:03.254Z" hostname="runnervm3lb7s" time="0.013">
+  <properties/>
+  <testcase name="appWhoseNameStartsWithItComesFirst" classname="io.github.nullangst.corkboard.SearchTest" time="0.011"/>
+  <testcase name="aLaterWordStartCountsEvenAfterAnInsideMatch" classname="io.github.nullangst.corkboard.SearchTest" time="0.001"/>
+  <testcase name="noMatchIsLeftOutAndEmptyQueryKeepsEverything" classname="io.github.nullangst.corkboard.SearchTest" time="0.0"/>
+  <testcase name="wordsSplitOnDashesAndDots" classname="io.github.nullangst.corkboard.SearchTest" time="0.0"/>
+  <testcase name="caseAccentsAndSpacesAroundAreIgnored" classname="io.github.nullangst.corkboard.SearchTest" time="0.001"/>
+  <testcase name="nameStartBeatsWordStartBeatsInside" classname="io.github.nullangst.corkboard.SearchTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

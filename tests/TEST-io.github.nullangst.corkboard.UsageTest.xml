@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="io.github.nullangst.corkboard.UsageTest" tests="5" skipped="0" failures="0" errors="0" timestamp="2026-11-27T21:49:03.269Z" hostname="runnervm3lb7s" time="0.005">
+  <properties/>
+  <testcase name="rowTakesTheTopFewMostUsedFirst" classname="io.github.nullangst.corkboard.UsageTest" time="0.003"/>
+  <testcase name="searchTiesGoToTheMoreUsedApp" classname="io.github.nullangst.corkboard.UsageTest" time="0.0"/>
+  <testcase name="countsHalveEveryHalfLife" classname="io.github.nullangst.corkboard.UsageTest" time="0.001"/>
+  <testcase name="drawerColumnsAdaptToWidth" classname="io.github.nullangst.corkboard.UsageTest" time="0.0"/>
+  <testcase name="recentUseBeatsOldHeavyUse" classname="io.github.nullangst.corkboard.UsageTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

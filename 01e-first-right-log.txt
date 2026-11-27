@@ -1,0 +1,8 @@
+--------- beginning of main
+11-27 21:52:17.210  2222  2222 D CBDBG   : grid intercept a=0 x=167.0 y=135.0 -> false first=0 children=19
+11-27 21:52:17.210  2222  2222 D CBDBG   : icon Calendar view=242252480 a=0 -> true pressed=false attached=true
+11-27 21:52:17.210  2222  2222 D CBDBG   : drawer dispatch a=0 raw=167.0,431.0 -> true closing=false child0=242252480 at=0,296 254x231 enabled=true clickable=true ty=0.0
+11-27 21:52:17.214  2222  2222 D CBDBG   : grid intercept a=1 x=167.0 y=135.0 -> false first=0 children=19
+11-27 21:52:17.214  2222  2222 D CBDBG   : icon Calendar view=242252480 a=1 -> true pressed=true attached=true
+11-27 21:52:17.215  2222  2222 D CBDBG   : drawer dispatch a=1 raw=167.0,431.0 -> true closing=false child0=242252480 at=0,296 254x231 enabled=true clickable=true ty=0.0
+11-27 21:52:17.216  2222  2222 D CBDBG   : click pos=0 view=242252480 app=Calendar
