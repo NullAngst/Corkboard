@@ -68,16 +68,6 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private val body = android.widget.FrameLayout(act)
     /** The app grid. Draws a thin line under the most-used row while that row is on screen. */
     private val grid = object : GridView(act) {
-        override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-            val r = super.onInterceptTouchEvent(ev)
-            if (ev.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CBDBG", "grid intercept a=${ev.actionMasked} x=${ev.x} y=${ev.y} -> $r first=$firstVisiblePosition children=$childCount")
-            return r
-        }
-        override fun onTouchEvent(ev: MotionEvent): Boolean {
-            val r = super.onTouchEvent(ev)
-            if (ev.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CBDBG", "grid touch a=${ev.actionMasked} -> $r")
-            return r
-        }
         override fun dispatchDraw(canvas: Canvas) {
             super.dispatchDraw(canvas)
             if (topCells == 0 || firstVisiblePosition != 0) return
@@ -130,11 +120,7 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
             v.label = app.label
             v.greyed = Apps.isQuiet(app.key.user)
             Dots.attach(v, listOf(Dots.keyOf(app.key)), act.pal)
-            android.util.Log.d("CBDBG", "getView pos=$position view=${System.identityHashCode(v)} app=${app.label} parent=${v.parent != null}")
-            v.setOnClickListener {
-                android.util.Log.d("CBDBG", "click pos=$position view=${System.identityHashCode(v)} app=${app.label}")
-                act.launchApp(v, app.key)
-            }
+            v.setOnClickListener { act.launchApp(v, app.key) }
             v.setOnLongClickListener {
                 act.dnd.startDrawerDrag(v, app)
                 true
@@ -408,17 +394,6 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     private var closing = false
     private var onStrip = false
     private var vt: android.view.VelocityTracker? = null
-
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        val r = super.dispatchTouchEvent(ev)
-        if (ev.actionMasked != MotionEvent.ACTION_MOVE) {
-            val c0 = grid.getChildAt(0)
-            val loc = IntArray(2)
-            c0?.getLocationOnScreen(loc)
-            android.util.Log.d("CBDBG", "drawer dispatch a=${ev.actionMasked} raw=${ev.rawX},${ev.rawY} -> $r closing=$closing child0=${c0?.let { System.identityHashCode(it) }} at=${loc[0]},${loc[1]} ${c0?.width}x${c0?.height} enabled=${c0?.isEnabled} clickable=${c0?.isClickable} ty=$translationY")
-        }
-        return r
-    }
 
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {

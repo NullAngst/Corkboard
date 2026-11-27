@@ -55,6 +55,7 @@ Themed icons read each app's monochrome layer (`AdaptiveIconDrawable.getMonochro
    - Drag an app onto another app, hold, drop: a folder forms. Drag one back out.
    - Drag an app onto an occupied cell: neighbors slide aside.
    - Search the drawer for the first few letters of an app: apps whose name starts with them come first, and Enter opens the top one.
+   - Tap the top-left app in the drawer, with and without a search typed: it opens. The drawer's adapter must only change a cell's height, never hand it new layout params, or that first cell stops taking taps (see changes.md, 2026.11.27 drawer bug fix).
    - Rotate to landscape (with Allow home screen rotation on) or use a tablet: the drawer has more columns than on a phone in portrait.
    - Add a widget, resize it, remove it. With gesture navigation on, put a widget against the left edge, open Resize, and drag its left handle: the widget resizes and Android's back gesture doesn't fire. Same for the right edge. Then make a widget as wide as the grid and resize it back down: it must shrink at least to the size it was placed at.
    - "Add to home screen" from Chrome: a pinned shortcut lands on the home screen.

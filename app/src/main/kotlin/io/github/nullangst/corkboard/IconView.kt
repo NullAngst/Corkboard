@@ -105,16 +105,11 @@ class IconView(ctx: Context) : View(ctx) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             // Not ours: the home screen behind gets the whole gesture.
-            if (!hits(event.x, event.y)) {
-                android.util.Log.d("CBDBG", "icon $label DOWN miss x=${event.x} y=${event.y}")
-                return false
-            }
+            if (!hits(event.x, event.y)) return false
             downX = event.x
             downY = event.y
         }
-        val r = super.onTouchEvent(event)
-        if (event.actionMasked != MotionEvent.ACTION_MOVE) android.util.Log.d("CBDBG", "icon $label view=${System.identityHashCode(this)} a=${event.actionMasked} -> $r pressed=$isPressed attached=$isAttachedToWindow")
-        return r
+        return super.onTouchEvent(event)
     }
 
     /** True when a point (view coordinates) is on the icon or its label, with a small margin. */
