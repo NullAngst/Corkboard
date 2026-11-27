@@ -1,5 +1,12 @@
 # Changes
 
+2026.11.27 - Drawer bug fix
+
+* The first app in the drawer opens on tap again. This covers the top-left app in the full list and the first search result. Enter already worked
+* TalkBack can reach that first app again, since it was missing from the accessibility tree too
+
+Reasons for changes: reported bug, introduced by the Most used apps change earlier today. To size each drawer cell (the Most used row is a little taller), the drawer gave every cell fresh layout params. GridView builds the first cell early to measure itself and leaves a mark in that cell's params so it gets properly attached later. Fresh params wiped the mark, so the first cell was drawn but never attached to the window, and its tap never ran. Cells now keep their params and only the height changes.
+
 2026.11.27 - Most used apps, adaptive drawer
 
 * New Privacy switch, Most used apps, off by default. With it on, the first row of the drawer's Personal and Work tabs shows the apps you open most, most used first, with a line under the row. It is one row wide and hides while you search
