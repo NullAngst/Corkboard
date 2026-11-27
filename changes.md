@@ -1,5 +1,13 @@
 # Changes
 
+2026.11.27 - Search order
+
+* Drawer search puts the best matches first: apps whose name starts with what you typed, then apps with a later word starting with it, then apps that only contain it. Alphabetical within each group. Typing "ins" now lists Insget and Instagram before Universal Installer, and Gubbins last
+* Since Enter opens the top result, it now opens the app whose name starts with what you typed
+* Search matching moved into its own file, Search.kt, with unit tests
+
+Reasons for changes: requested. Search kept the drawer's alphabetical order, so a name that only contained the typed letters could come first and Enter would open it.
+
 2026.11.26 - Widget resize fix
 
 * A widget made as wide as the grid can be resized back down again. Its minimum size never counts as more than the size it was placed at, the same rule Pixel Launcher (Launcher3) follows

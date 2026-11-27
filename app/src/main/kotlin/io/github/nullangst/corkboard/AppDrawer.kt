@@ -25,7 +25,6 @@ import android.widget.EditText
 import android.widget.GridView
 import android.widget.LinearLayout
 import android.widget.TextView
-import java.text.Normalizer
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -236,9 +235,10 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
     }
 
     private fun filter() {
-        val q = fold(search.text.toString().trim())
+        val q = search.text.toString().trim()
         val locked = tab == Apps.Tab.PRIVATE && PrivateSpace.locked()
-        items = if (locked) emptyList() else Apps.drawerApps(tab).filter { q.isEmpty() || fold(it.label).contains(q) }
+        // Best matches first (Search.kt), since Enter launches the first one.
+        items = if (locked) emptyList() else Search.filter(Apps.drawerApps(tab), q) { it.label }
         adapter.notifyDataSetChanged()
         // The letter strip is for browsing the whole list, so it steps aside while searching.
         scroller.setItems(items) { letterOf(it.label) }
@@ -250,14 +250,9 @@ class AppDrawer(private val act: HomeActivity) : LinearLayout(act) {
 
     /** The letter an app sorts under: its first letter without accents, or # for anything else. */
     private fun letterOf(label: String): String {
-        val c = fold(label).trimStart().firstOrNull() ?: return "#"
+        val c = Search.fold(label).trimStart().firstOrNull() ?: return "#"
         return if (c.isLetter()) c.uppercaseChar().toString() else "#"
     }
-
-    private val marks = Regex("\\p{Mn}+")
-
-    /** Lowercase with accents dropped, so "musica" finds "Música" and "uber" finds "Über". */
-    private fun fold(s: String) = Normalizer.normalize(s, Normalizer.Form.NFD).replace(marks, "").lowercase()
 
     // ---- Open and close ----
 
