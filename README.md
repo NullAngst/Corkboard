@@ -21,7 +21,7 @@ Home screen, app drawer and an open folder, on an Android 15 emulator with the d
 
 - Home screen grid with multiple pages and free placement (default 4 x 6, adjustable from 3 to 6 columns and 4 to 8 rows).
 - Dock: one row under the pages, same on every page.
-- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs, and a letter strip down the side to jump through the list.
+- App drawer: swipe up. Alphabetical in your language's order, search on top that ignores accents, Personal and Work tabs, and a letter strip down the side to jump through the list. Search puts apps whose name starts with what you typed first, then apps with a later word starting with it, then the rest; Enter opens the top one.
 - New apps land on the home screen (toggle, on by default). Uninstalled apps disappear everywhere.
 - Long-press and drag to rearrange. Items in the way slide aside, Pixel-style. Drag to the screen edge to change page.
 - Folders: hold an app over another app for half a second. Rename, reorder, drag out.
@@ -186,7 +186,7 @@ Each file holds one thing, named for it, so any feature can be read on its own.
 | `Undo.kt` | The Undo bar after removing or hiding something. |
 | `EnterAnimation.kt` | Icons rising in when coming back from an app. |
 | `Workspace.kt`, `CellGrid.kt`, `PageDots.kt`, `IconView.kt` | Pages, the grid inside each, the page dots, one icon with its label and dot. |
-| `AppDrawer.kt`, `LetterScroller.kt` | The drawer and its letter strip. |
+| `AppDrawer.kt`, `LetterScroller.kt`, `Search.kt` | The drawer, its letter strip, and search matching and order. |
 | `FolderPanel.kt` | An open folder. |
 | `Widgets.kt` | Widget host, picker, setup, settings and resize. |
 | `Shortcuts.kt` | App shortcuts, pinned shortcuts and the "Add to home screen" confirmation. |
